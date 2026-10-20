@@ -1,0 +1,14 @@
+Toki — 安裝說明
+
+適用於 Apple Silicon（M1 或更新）及 macOS 13 以上。
+
+1. 將 Toki.app 拖到 Applications。
+2. 從「應用程式」開啟 Toki。
+
+App 已內附 ExifTool，不需要 Homebrew 或其他安裝步驟。
+
+若 macOS 顯示「無法驗證開發者」：
+請先嘗試開啟一次，再到「系統設定 → 隱私權與安全性」找到 Toki，按「仍要打開」。
+只在確認下載自本專案官方 Releases 時繼續。
+
+使用文件：https://github.com/HeiTang/Toki

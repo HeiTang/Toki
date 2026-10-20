@@ -1,0 +1,10 @@
+.DS_Store
+/dist/
+/.build/
+*.xcuserstate
+.env
+.env.*
+!.env.example
+.photodate-*.json
+
+/brag-output*/

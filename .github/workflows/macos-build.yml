@@ -1,0 +1,63 @@
+name: macOS Build
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'Sources/**'
+      - 'Tests/**'
+      - 'Resources/**'
+      - 'Assets/AppIcon/**'
+      - 'ThirdParty/**'
+      - 'scripts/**'
+      - 'docs/INSTALL.txt'
+      - '*.command'
+      - '.github/workflows/**'
+  pull_request:
+    paths:
+      - 'Sources/**'
+      - 'Tests/**'
+      - 'Resources/**'
+      - 'Assets/AppIcon/**'
+      - 'ThirdParty/**'
+      - 'scripts/**'
+      - 'docs/INSTALL.txt'
+      - '*.command'
+      - '.github/workflows/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: macos-build-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build, test and package (Apple Silicon)
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check runner
+        run: |
+          test "$(uname -m)" = arm64
+          swiftc --version
+      - name: Build and run all self-tests
+        run: ./build.command
+      - name: Verify and package DMG and ZIP
+        run: ./release.command
+      - name: Upload test packages
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: Toki-macos-arm64
+          path: |
+            dist/Toki-macos-arm64.dmg
+            dist/Toki-macos-arm64.zip
+            dist/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 14
