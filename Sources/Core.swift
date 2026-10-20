@@ -94,7 +94,15 @@ func namingStem(_ rule: String, timestamp: String, original: URL, index: Int) th
     try validateNamingRule(rule)
     let digits = Array(timestamp.replacingOccurrences(of: "_", with: ""))
     guard digits.count == 14, digits.allSatisfy({ $0.isNumber }) else { throw RenameError(message: "拍攝日期無法用於命名。") }
-    let values = ["yyyy": String(digits[0..<4]), "MM": String(digits[4..<6]), "dd": String(digits[6..<8]), "HH": String(digits[8..<10]), "mm": String(digits[10..<12]), "ss": String(digits[12..<14]), "name": original.deletingPathExtension().lastPathComponent, "index": String(format: "%04d", index)]
+    var values: [String: String] = [:]
+    values["yyyy"] = String(digits[0..<4])
+    values["MM"] = String(digits[4..<6])
+    values["dd"] = String(digits[6..<8])
+    values["HH"] = String(digits[8..<10])
+    values["mm"] = String(digits[10..<12])
+    values["ss"] = String(digits[12..<14])
+    values["name"] = original.deletingPathExtension().lastPathComponent
+    values["index"] = String(format: "%04d", index)
     let regex = try NSRegularExpression(pattern: #"\{(yyyy|MM|dd|HH|mm|ss|name|index)\}"#)
     var result = rule
     for match in regex.matches(in: rule, range: NSRange(rule.startIndex..., in: rule)).reversed() {
