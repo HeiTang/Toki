@@ -10,14 +10,15 @@ func p0UISelfTest() throws {
     try check(!app.commandEnabled(#selector(AppDelegate.renameCurrent)), "empty state cannot rename")
     try check(!app.commandEnabled(#selector(AppDelegate.exportCSV)), "empty state cannot export")
     try check(app.commandEnabled(#selector(AppDelegate.restoreLog)), "journal picker remains available without folder")
-    try check(app.locationRow.isHidden && app.footerRow.isHidden && app.inspector.isHidden && app.split.isHidden, "empty state has no folder strip, footer or inspector")
+    try check(app.footerRow.isHidden && app.inspector.isHidden && app.split.isHidden, "empty state has no folder strip, footer or inspector")
     try check(app.window.subtitle.isEmpty && app.status.stringValue.isEmpty, "empty state has no version or capability boilerplate")
+    app.window.contentView?.layoutSubtreeIfNeeded()
+    try check(app.emptyView.frame == app.window.contentView!.bounds, "empty state fills the window independently of glass intrinsic size")
     app.toggleInspector()
     try check(app.inspector.isHidden && !app.commandEnabled(#selector(AppDelegate.toggleInspector)), "inspector cannot distract from empty state")
     let root = URL(fileURLWithPath: "/tmp/photodate-p0-ui-test")
     let a = root.appendingPathComponent("A.jpg"), b = root.appendingPathComponent("B.jpg")
     let missing = root.appendingPathComponent("missing.png")
-    try check(app.scope.superview === app.actionRow && app.renameButton.superview === app.actionRow, "scope and rename share the action row")
     app.root = root
     app.rows = [
         PlanRow(original: a, destination: root.appendingPathComponent("20240101_120000.jpg"), identity: nil,
@@ -26,17 +27,15 @@ func p0UISelfTest() throws {
                 date: "2024:01:01 12:00:00", source: "ExifIFD:DateTimeOriginal", status: "可重新命名"),
         PlanRow(original: missing, destination: nil, identity: nil, date: "—", source: "—", status: "跳過：無有效時間欄位")
     ]
-    app.updateLocation(root)
-    try check(app.locationButton.menu?.items.contains(where: { $0.title == root.lastPathComponent }) == true && app.locationButton.toolTip == root.path, "expanded location preserves selected folder and full path")
     app.rebuildVisibleRows()
-    try check(!app.locationRow.isHidden && !app.footerRow.isHidden && !app.inspector.isHidden && !app.split.isHidden, "import restores context and inspector")
+    try check(!app.footerRow.isHidden && !app.inspector.isHidden && !app.split.isHidden, "import restores context and inspector")
+    app.window.contentView?.layoutSubtreeIfNeeded()
+    try check(app.split.frame == app.window.contentView!.bounds, "preview and native inspector fill the window without a bottom gap")
     try check(app.displayStatus(app.rows[1]) == "同名已加序號", "collision suffix is visible without changing the plan")
-    try check(app.renameButton.title == "重新命名…" && app.candidateLabel.stringValue == "本次更名 2 個檔案", "stable action label and complete count")
+    try check(app.renameButton.title == "重新命名 2 個檔案", "stable action label and complete count")
     try check(!app.table.usesAlternatingRowBackgroundColors, "empty table area has no repeated stripes")
-    try check(app.status.stringValue == "顯示 3 / 3 個檔案", "footer reports visibility without duplicate execution counts")
-    try check(app.attentionLabel.stringValue == "2 個檔案需檢查", "attention count includes collision suffix and missing date")
-    try check(app.heading.superview === app.summary.superview, "preview title and summary share the left header group")
-    try check(app.attentionRow.arrangedSubviews.first is NSBox && !app.attentionExplanation.stringValue.isEmpty, "attention banner groups the count and explanation")
+    try check(app.status.stringValue == "3 個檔案 · 2 個可更名 · 1 個保留原名", "footer reports visibility without duplicate execution counts")
+    try check(app.filterRow.superview === app.heading.superview && app.status.superview === app.renameButton.superview, "filters balance the header and summary shares the action footer")
     let oldCell = app.tableView(app.table, viewFor: app.table.tableColumns[0], row: 0) as! PreviewCellView
     let newCell = app.tableView(app.table, viewFor: app.table.tableColumns[1], row: 0) as! PreviewCellView
     let statusCell = app.tableView(app.table, viewFor: app.table.tableColumns[2], row: 0) as! PreviewCellView
@@ -57,7 +56,7 @@ func p0UISelfTest() throws {
     app.table.selectRowIndexes(IndexSet(integer: 0), byExtendingSelection: false)
     for _ in 0..<6 { app.increasePreviewText() }
     try check(app.table.selectedRowIndexes == IndexSet(integer: 0) && app.selectedURLs == Set([a]), "text enlargement preserves visible selection and batch scope")
-    try check(app.previewTextScale == 2 && app.candidates.count == 2 && app.settings == ScanSettings(), "preview scaling is bounded and does not alter the rename plan")
+    try check(app.previewTextScale == 2 && app.candidates.count == 1 && app.settings == ScanSettings(), "preview scaling is bounded and does not alter the rename plan")
     app.selectedURLs = [a]; app.updateDetail()
     try check(app.fileNameLabel.font!.pointSize == 26 && app.timeLabel.font!.pointSize == 26 && app.table.rowHeight >= 42, "preview and inspector text enlarge to 200 percent")
     if let cell = app.tableView(app.table, viewFor: app.table.tableColumns.first, row: 0) as? PreviewCellView {
@@ -66,20 +65,21 @@ func p0UISelfTest() throws {
         try check(cell.imageView!.frame.maxX < cell.textField!.frame.minX && abs(cell.imageView!.frame.midY - cell.bounds.midY) < 0.5, "decorative icon stays centered without overlapping enlarged text")
     }
     app.resetPreviewText(); app.clearSelection()
-    try check(app.previewTextScale == 1 && app.table.rowHeight == 44, "reset restores original text and row size")
+    try check(app.previewTextScale == 1 && app.table.rowHeight == 30, "reset restores original text and row size")
     app.window.setFrame(NSRect(origin: app.window.frame.origin, size: NSSize(width: 960, height: 640)), display: false)
     app.fitPreviewColumns()
     try check(app.window.frame.size == NSSize(width: 960, height: 640), "preview honors the actual minimum window frame")
     let contentBounds = app.window.contentView!.bounds
-    for view in [app.locationRow!, app.filterRow!, app.attentionRow!, app.tableContainer, app.footerRow!, app.actionBar] as [NSView] {
+    for view in [app.filterRow!, app.tableContainer, app.footerRow!, app.actionBar] as [NSView] {
         let rect = view.convert(view.bounds, to: app.window.contentView!)
         try check(contentBounds.contains(rect), "minimum window keeps preview controls within the content area")
     }
-    for control in [app.renameButton!, app.scope, app.filter, app.namingRuleButton!] as [NSView] {
+    for control in [app.renameButton!, app.filter] as [NSView] {
         let rect = control.convert(control.bounds, to: app.window.contentView!)
-        try check(rect.width > 0 && rect.height > 0 && contentBounds.contains(rect), "minimum window retains usable filter, format, scope and rename controls")
+        try check(rect.width > 0 && rect.height > 0 && contentBounds.contains(rect), "minimum window retains usable filter, scope and rename controls")
     }
     let panel = app.makeSettingsPanel()
+    try check(app.settingsTabs.tabViewType == .topTabsBezelBorder, "settings use native tab navigation")
     panel.contentView?.layoutSubtreeIfNeeded()
     try check(panel.contentView!.bounds.width == 560 && panel.contentView!.bounds.height == 520, "settings have explicit usable dimensions")
     for control in [app.recursive, app.fallback, app.quickTimeUTC, app.outputTimeZone, app.settingsApply] as [NSView] {
@@ -101,11 +101,11 @@ func p0UISelfTest() throws {
     try check(app.outputTimeZone.isEnabled && app.outputTimeZone.titleOfSelectedItem == app.settings.timeZoneID, "UTC interpretation re-enables the chosen output time zone")
     app.settingsPanel = panel
     let settingsSize = panel.contentView!.bounds.size
-    app.settingsSections.selectedSegment = 1; app.selectSettingsSection(app.settingsSections)
+    app.settingsTabs.selectTabViewItem(at: 1)
     panel.contentView?.layoutSubtreeIfNeeded()
     let resetRect = app.namingReset.convert(app.namingReset.bounds, to: panel.contentView!)
     let formatRect = app.namingField.convert(app.namingField.bounds, to: panel.contentView!)
-    try check(panel.contentView!.bounds.contains(resetRect) && resetRect.minY > formatRect.maxY, "reset belongs beside the format heading and remains visible")
+    try check(panel.contentView!.bounds.contains(resetRect) && resetRect.maxY < formatRect.minY, "reset stays with token tools below the format field")
     let disclosure = NSButton(); disclosure.state = .on; app.toggleNamingDetails(disclosure)
     app.namingField.stringValue = "{bad}"; app.updateNamingSample()
     panel.contentView?.layoutSubtreeIfNeeded()
@@ -114,22 +114,16 @@ func p0UISelfTest() throws {
         try check(item.view is NSScrollView, "settings pages can scroll without moving the footer")
     }
     for section in [0, 1, 0] {
-        app.settingsSections.selectedSegment = section; app.selectSettingsSection(app.settingsSections)
+        app.settingsTabs.selectTabViewItem(at: section)
         panel.contentView?.layoutSubtreeIfNeeded()
         let applyRect = app.settingsApply.convert(app.settingsApply.bounds, to: panel.contentView!)
         try check(panel.contentView!.bounds.size == settingsSize && panel.contentView!.bounds.contains(applyRect), "switching settings tabs retains the sheet size and visible apply button")
     }
     app.settingsPanel = nil
     panel.close()
-    app.updateLocation(root.appendingPathComponent(String(repeating: "長路徑資料夾/", count: 12)))
     for size in [NSSize(width: 960, height: 640), NSSize(width: 1180, height: 760)] {
         app.window.setContentSize(size); app.fitPreviewColumns()
         try check(app.table.tableColumns.reduce(0) { $0 + $1.width } <= app.tableScroll.contentSize.width + 1, "all preview columns fit the available width")
-        try check(app.locationButton.alignmentRect(forFrame: app.locationButton.frame).width == 260 && app.locationButton.pullsDown, "location is compact and expands on demand")
-        let locationRect = app.window.contentView!.convert(app.locationRow.alignmentRect(forFrame: app.locationRow.frame), from: app.locationRow.superview)
-        let headingRect = app.window.contentView!.convert(app.heading.alignmentRect(forFrame: app.heading.frame), from: app.heading.superview)
-        try check(abs(locationRect.minX - headingRect.minX) < 0.5, "location and preview use the same leading inset")
-        try check(app.locationLabel.stringValue == "所在位置", "folder name is not duplicated in the content header")
         if let cell = app.tableView(app.table, viewFor: app.table.tableColumns.first, row: 0) as? PreviewCellView {
             let host = NSView(frame: NSRect(x: 0, y: 0, width: 180, height: 38)); host.addSubview(cell)
             cell.frame = host.bounds; host.layoutSubtreeIfNeeded()
@@ -141,6 +135,7 @@ func p0UISelfTest() throws {
     app.window.contentView?.layoutSubtreeIfNeeded()
     try check(app.window.toolbar?.items.contains(where: { $0.itemIdentifier.rawValue == "settings" && $0.action == #selector(AppDelegate.showSettings) }) == true, "scan settings have a toolbar entry")
     try check(app.detail.isHidden && !app.technicalRow.isHidden, "technical details are collapsed by default")
+    try check(app.pathRows.map { app.currentURL($0).path } == [a.path], "path command targets selected file instead of import sources")
     try check(app.fileNameLabel.stringValue == "A.jpg" && app.sourceLabel.stringValue == "EXIF 拍攝時間", "inspector shows file and readable source")
     app.technicalToggle.state = .on; app.toggleTechnicalDetails()
     try check(!app.detail.isHidden && app.detail.stringValue.contains("ExifIFD:DateTimeOriginal"), "disclosure preserves raw metadata")
@@ -148,9 +143,11 @@ func p0UISelfTest() throws {
     app.selectedURLs = [a, b]; app.updateDetail()
     try check(app.fileNameLabel.toolTip == nil, "multi-selection never retains a previous file tooltip")
     try check(app.fileNameLabel.stringValue == "已選取 2 個檔案" && app.technicalRow.isHidden && app.revealButton.isHidden, "multi-selection does not present one file as batch metadata")
-    app.selectedURLs = [missing]; app.updateDetail()
+    app.selectedURLs = [missing]; app.updateDetail(); app.refreshControls()
+    try check(app.candidates.isEmpty && !app.renameButton.isEnabled, "unrenameable selection never falls back to renaming all files")
     try check(!app.warningLabel.isHidden && app.warningLabel.stringValue == "跳過 · 無有效日期", "missing date remains visible outside disclosure")
-    app.selectedURLs.removeAll(); app.updateDetail()
+    app.selectedURLs.removeAll(); app.updateDetail(); app.refreshControls()
+    try check(app.candidates.count == 2 && app.renameButton.title == "重新命名 2 個檔案", "clearing selection restores the full actionable batch")
     try check(app.image.isHidden && app.revealButton.isHidden && app.fileNameLabel.stringValue == "選取檔案以查看資訊", "empty inspector avoids blank preview")
     app.toggleInspector()
     try check(app.inspector.isHidden, "inspector can be hidden")
@@ -159,15 +156,14 @@ func p0UISelfTest() throws {
     try check(app.inspector.isHidden, "temporary empty state does not overwrite user's inspector preference")
     app.toggleInspector()
     try check(!app.inspector.isHidden, "inspector can be restored")
-    app.selectedURLs = [a, b]; app.scope.selectItem(at: 1)
-    try check(app.candidates.map(\.original) == [a, b], "selected scope uses original plan order")
+    app.selectedURLs = [a, b]
+    try check(app.selectedRows.map(\.original) == [a, b], "selected actions use original plan order")
     app.filter.selectedSegment = 1; app.rebuildVisibleRows()
     try check(app.visibleIndices == [1, 2] && app.candidates.count == 2, "filter does not change selected scope")
     try check(app.commandEnabled(#selector(AppDelegate.clearSelection)), "hidden selection remains clearable")
     app.table.sortDescriptors = [NSSortDescriptor(key: "old", ascending: false)]
     app.filter.selectedSegment = 0; app.rebuildVisibleRows()
     try check(app.visibleIndices.first == 2 && app.candidates.map(\.original) == [a, b], "display sort does not alter rename plan")
-    app.scope.selectItem(at: 0)
     try check(app.candidates.count == 2, "all scope ignores filter and skips invalid rows")
     app.busyMessage.stringValue = "正在重新命名並保留復原紀錄…"
     app.busy = true; app.refreshControls()
@@ -228,15 +224,15 @@ func p0UISelfTest() throws {
         }
     }
     app.resultFrozen = false; app.restoredResult = false; app.completedURLs.removeAll(); app.attemptedURLs.removeAll()
-    app.resultLabel.stringValue = ""; app.selectedURLs.removeAll(); app.filter.selectedSegment = 0; app.scope.selectItem(at: 0)
+    app.resultLabel.stringValue = ""; app.selectedURLs.removeAll(); app.filter.selectedSegment = 0
     app.rows = (0..<1000).map { index in
         PlanRow(original: root.appendingPathComponent("照片-\(index).jpg"), destination: root.appendingPathComponent("20240101_120000_\(index).jpg"), identity: nil, date: "2024:01:01 12:00:00", source: "ExifIFD:DateTimeOriginal", status: "可重新命名")
     }
     app.previewTextScale = 1; app.applyPreviewTextSize()
-    try check(app.table.numberOfRows == 1000 && app.candidates.count == 1000 && app.candidateLabel.stringValue == "本次更名 1000 個檔案", "large batches keep table and execution counts consistent")
+    try check(app.table.numberOfRows == 1000 && app.candidates.count == 1000 && app.renameButton.title == "重新命名 1000 個檔案", "large batches keep table and execution counts consistent")
     let selected = app.rows[500].original
-    app.selectedURLs = [selected]; app.scope.selectItem(at: 1); app.filter.selectedSegment = 1; app.rebuildVisibleRows()
-    try check(app.candidates.count == 1 && app.selectedURLs == [selected], "large-batch filtering preserves the explicit selected scope")
+    app.selectedURLs = [selected]; app.filter.selectedSegment = 1; app.rebuildVisibleRows()
+    try check(app.selectedRows.filter(\.actionable).count == 1 && app.candidates.count == 1 && app.renameButton.title == "重新命名選取的 1 個檔案" && app.selectedURLs == [selected], "large-batch filtering preserves the explicit selected scope")
     let appearanceSuite = "PhotoDateAppearanceTest-" + UUID().uuidString
     let testPreferences = UserDefaults(suiteName: appearanceSuite)!
     let originalAppearance = NSApp.appearance
@@ -262,10 +258,12 @@ func p0UISelfTest() throws {
     let candidatesBeforeFilter = app.candidates.map(\.original)
     app.showAttention()
     try check(app.filter.selectedSegment == 1 && app.candidates.map(\.original) == candidatesBeforeFilter, "review shortcut changes visibility without changing the rename scope")
-    app.busy = true; app.refreshControls(); app.showNamingSettings()
+    app.busy = true; app.refreshControls(); app.showSettings()
     try check(app.filterRow.isHidden && app.actionBar.isHidden && app.settingsPanel == nil, "busy state hides batch controls and blocks naming sheet")
-    app.busy = false; app.refreshControls(); app.showNamingSettings()
-    try check(app.settingsPanel != nil && app.settingsSections.selectedSegment == 1 && app.settingsTabs.indexOfTabViewItem(app.settingsTabs.selectedTabViewItem!) == 1, "naming shortcut opens the naming section directly")
+    app.busy = false; app.refreshControls(); app.showSettings()
+    try check(app.settingsPanel != nil, "settings remain available from the standard entry point")
+    app.settingsTabs.selectTabViewItem(at: 1)
+    try check(app.settingsTabs.selectedTabViewItem?.label == "命名", "naming is available inside settings")
     app.cancelSettings()
     try importAndNamingTests()
     print("P0 UI self-tests passed")
@@ -323,17 +321,16 @@ func p0EmptyPreviewTest() throws {
     app.heading.stringValue = "沒有可處理的照片或影片"
     app.resultLabel.stringValue = "請選擇其他資料夾，或重新掃描。"
     app.refreshControls()
-    guard app.tableScroll.isHidden && app.actionRow.isHidden && app.actionBar.isHidden && app.footerRow.isHidden && app.inspector.isHidden && app.summary.isHidden && !app.locationRow.isHidden && !app.resultRow.isHidden,
+    guard app.tableScroll.isHidden && app.actionRow.isHidden && app.actionBar.isHidden && app.footerRow.isHidden && app.inspector.isHidden && app.summary.isHidden && !app.resultRow.isHidden,
           !app.commandEnabled(#selector(AppDelegate.renameCurrent)),
           !app.commandEnabled(#selector(AppDelegate.toggleInspector)),
           app.commandEnabled(#selector(AppDelegate.rescan)),
           app.commandEnabled(#selector(AppDelegate.chooseFolder)) else { throw RenameError(message: "P0 empty preview: unavailable batch controls must not distract from recovery") }
     app.window.contentView!.layoutSubtreeIfNeeded()
     let host = app.window.contentView!
-    let location = app.locationRow.convert(app.locationRow.bounds, to: host)
     let title = app.heading.convert(app.heading.bounds, to: host)
     let result = app.resultRow.convert(app.resultRow.bounds, to: host)
-    guard location.minY - title.maxY < 48 && title.minY - result.maxY < 48 else {
+    guard title.minY - result.maxY < 48 else {
         throw RenameError(message: "P0 empty preview: title and recovery must remain grouped under location")
     }
     app.heading.stringValue = "掃描失敗"; app.resultLabel.stringValue = "沒有讀取權限"; app.refreshControls()
@@ -344,7 +341,7 @@ func p0EmptyPreviewTest() throws {
     app.rows = []; app.root = nil; app.resultFrozen = true; app.restoredResult = true
     app.heading.stringValue = "復原完成"; app.summary.stringValue = "已復原 2 個檔名。"
     app.resultLabel.stringValue = "復原紀錄已保留。"; app.refreshControls()
-    guard !app.split.isHidden && app.emptyView.isHidden && !app.heading.isHidden && !app.summary.isHidden && !app.resultRow.isHidden && app.locationRow.isHidden && app.tableScroll.isHidden else {
+    guard !app.split.isHidden && app.emptyView.isHidden && !app.heading.isHidden && !app.summary.isHidden && !app.resultRow.isHidden && app.tableScroll.isHidden else {
         throw RenameError(message: "restoring a journal before folder import must show its outcome")
     }
     print("P0 empty preview tests passed")

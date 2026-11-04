@@ -52,32 +52,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
     NSMenuItemValidation, NSToolbarItemValidation, NSTextFieldDelegate {
     var window: NSWindow!
     let table = NSTableView()
-    var locationRow: NSStackView!
     var footerRow: NSStackView!
     var inspectorVisible = true
     var previewTextScale: CGFloat = 1
-    let locationLabel = NSTextField(labelWithString: "所在位置")
-    let locationButton = NSPopUpButton(frame: .zero, pullsDown: true)
     let tableScroll = NSScrollView()
     let tableContainer = NSView()
     let tableEmptyLabel = NSTextField(labelWithString: "沒有符合篩選的項目")
     let emptyView = NSView()
-    let inspectorMaterial = NSVisualEffectView()
-    let namingRuleLabel = NSTextField(labelWithString: "")
-    var namingRuleButton: NSButton!
     var filterRow: NSStackView!
-    let actionBar = NSVisualEffectView()
+    let actionBar = NSView()
     let previewSpacer = NSView()
     let emptyButton = NSButton(title: "加入檔案或資料夾…", target: nil, action: nil)
     let busyMessage = NSTextField(wrappingLabelWithString: "")
-    let attentionLabel = NSTextField(wrappingLabelWithString: "")
-    let attentionExplanation = NSTextField(wrappingLabelWithString: "")
-    var attentionRow: NSStackView!
-    let candidateLabel = NSTextField(labelWithString: "")
     var actionRow: NSStackView!
     var settingsPanel: NSPanel?
     let settingsApply = NSButton(title: "套用", target: nil, action: nil)
-    let copyPathButton = NSButton(title: "完整路徑", target: nil, action: nil)
     let heading = NSTextField(labelWithString: "加入照片或影片所在資料夾")
     let summary = NSTextField(wrappingLabelWithString: "先預覽拍攝時間與新檔名，再確認更名。")
     let status = NSTextField(wrappingLabelWithString: "不使用 Finder 建立／修改日期。")
@@ -94,7 +83,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
     let technicalToggle = NSButton()
     let image = NSImageView()
     let progress = NSProgressIndicator()
-    let scope = NSPopUpButton(frame: .zero, pullsDown: false)
     let filter = NSSegmentedControl(labels: ["全部", "需注意", "可更名"], trackingMode: .selectOne, target: nil, action: nil)
     let recursive = NSButton(checkboxWithTitle: "包含子資料夾", target: nil, action: nil)
     let fallback = NSButton(checkboxWithTitle: "使用照片備用時間（需核對）", target: nil, action: nil)
@@ -129,7 +117,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
     let namingField = NSTextField(string: "")
     let namingSample = NSTextField(wrappingLabelWithString: "")
     var settingsTabs = NSTabView()
-    var settingsSections = NSSegmentedControl()
     var namingReset = NSButton()
     let namingError = NSTextField(wrappingLabelWithString: "")
     var namingDetails = NSTextField(wrappingLabelWithString: "")
@@ -157,9 +144,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
         window.delegate = self
         window.toolbarStyle = .unified
         window.backgroundColor = .windowBackgroundColor
-        scope.addItems(withTitles: ["全部可用項目", "選取項目"])
-        scope.target = self; scope.action = #selector(scopeChanged)
-        scope.setAccessibilityLabel("更名範圍")
         let toolbar = NSToolbar(identifier: "PhotoDateToolbar")
         toolbar.delegate = self
         toolbar.displayMode = .iconOnly
@@ -173,53 +157,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
         content.canImport = { [weak self] in self.map { !$0.busy && !$0.sheetPending } ?? false }
         content.onImport = { [weak self] in self?.importItems($0) }
         window.contentView = content
-        locationLabel.isSelectable = true
-        locationLabel.font = .systemFont(ofSize: 12)
-        locationLabel.textColor = .secondaryLabelColor
-        locationLabel.lineBreakMode = .byTruncatingMiddle
-        locationLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        locationButton.bezelStyle = .rounded
-        locationButton.cell?.lineBreakMode = .byTruncatingMiddle
-        locationButton.widthAnchor.constraint(equalToConstant: 260).isActive = true
-        locationButton.setAccessibilityLabel("所在位置：上層資料夾")
-        locationButton.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        copyPathButton.target = self; copyPathButton.action = #selector(showFolderPath); copyPathButton.bezelStyle = .rounded
-        copyPathButton.setAccessibilityLabel("查看匯入來源完整路徑")
-        locationRow = NSStackView(views: [locationLabel, locationButton, copyPathButton, NSView()])
-        locationRow.spacing = 8; locationRow.alignment = .centerY
+        let main = NSView(); inspector = NSView()
         split = NSSplitView(); split.isVertical = true; split.dividerStyle = .thin
-        let main = NSView(); inspector = inspectorMaterial
-        inspectorMaterial.material = .sidebar
-        inspectorMaterial.blendingMode = .withinWindow
-        inspectorMaterial.state = .followsWindowActiveState
         split.addArrangedSubview(main); split.addArrangedSubview(inspector)
         split.setHoldingPriority(.defaultLow, forSubviewAt: 0)
         split.setHoldingPriority(.defaultHigh, forSubviewAt: 1)
-        inspector.widthAnchor.constraint(equalToConstant: 304).isActive = true
+        inspector.widthAnchor.constraint(equalToConstant: 300).isActive = true
         main.widthAnchor.constraint(greaterThanOrEqualToConstant: 530).isActive = true
 
-        heading.font = .systemFont(ofSize: 20, weight: .semibold)
+        heading.font = .systemFont(ofSize: 13, weight: .semibold)
         summary.textColor = .secondaryLabelColor
         filter.selectedSegment = 0; filter.target = self; filter.action = #selector(filterChanged)
         filter.setAccessibilityLabel("預覽清單篩選")
-        let titleGroup = NSStackView(views: [heading, summary])
-        titleGroup.orientation = .vertical; titleGroup.alignment = .leading; titleGroup.spacing = 4
-        summary.font = .systemFont(ofSize: 12)
+        summary.font = .systemFont(ofSize: 11)
         summary.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        titleGroup.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        let header = NSStackView(views: [titleGroup, NSView()])
+        filter.segmentStyle = .rounded; filter.controlSize = .small
+        filterRow = NSStackView(views: [filter])
+        let header = NSStackView(views: [heading, NSView(), filterRow!])
         header.alignment = .centerY; header.spacing = 12
-        filter.segmentStyle = .rounded
-        namingRuleButton = button("命名格式…", #selector(showNamingSettings))
-        namingRuleButton.image = NSImage(systemSymbolName: "textformat", accessibilityDescription: nil)
-        namingRuleButton.imagePosition = .imageLeading
-        namingRuleButton.setAccessibilityLabel("調整命名格式")
-        namingRuleLabel.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
-        namingRuleLabel.textColor = .secondaryLabelColor
-        namingRuleLabel.lineBreakMode = .byTruncatingMiddle
-        namingRuleLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        filterRow = NSStackView(views: [filter, NSView(), namingRuleLabel, namingRuleButton])
-        filterRow.alignment = .centerY; filterRow.spacing = 8
         resultLabel.isSelectable = true
         restoreLastButton = button("復原這次…", #selector(restoreLast))
         resultRescanButton = button("重新掃描", #selector(rescan))
@@ -252,15 +207,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
         table.allowsMultipleSelection = true
         table.usesAlternatingRowBackgroundColors = false
         table.style = .fullWidth
-        table.intercellSpacing = NSSize(width: 0, height: 2)
-        table.rowHeight = 44
+        table.intercellSpacing = NSSize(width: 0, height: 0)
+        table.rowHeight = 30
         table.columnAutoresizingStyle = .uniformColumnAutoresizingStyle
         table.setAccessibilityLabel("原始檔名、新檔名與更名狀態預覽")
-        table.menu = commandMenu([("在 Finder 顯示", #selector(revealFile)), ("取消選取", #selector(clearSelection))])
+        table.menu = commandMenu([("在 Finder 顯示", #selector(revealFile)), ("複製檔案路徑", #selector(copyFilePaths)), ("取消選取", #selector(clearSelection))])
         let scroll = tableScroll; scroll.documentView = table
         scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = false; scroll.autohidesScrollers = true
         scroll.borderType = .noBorder
-        scroll.wantsLayer = true; scroll.layer?.cornerRadius = 12; scroll.layer?.masksToBounds = true
         tableEmptyLabel.textColor = .secondaryLabelColor; tableEmptyLabel.translatesAutoresizingMaskIntoConstraints = false
         install(scroll, in: tableContainer, inset: 0)
         tableContainer.addSubview(tableEmptyLabel)
@@ -268,30 +222,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
             tableEmptyLabel.centerYAnchor.constraint(equalTo: tableContainer.centerYAnchor)])
         scroll.setContentHuggingPriority(.defaultLow, for: .vertical)
         emptyButton.target = self; emptyButton.action = #selector(chooseFolder); emptyButton.bezelStyle = .rounded
-        emptyButton.controlSize = .large
+        emptyButton.controlSize = .regular
         emptyButton.bezelColor = .controlAccentColor
-        let emptyTitle = NSTextField(labelWithString: "讓回憶，回到拍攝的那一刻。")
-        emptyTitle.font = .systemFont(ofSize: 28, weight: .bold)
-        let emptyHint = NSTextField(labelWithString: "拖入照片、影片或資料夾，依拍攝時間整理檔名。")
+        let emptyTitle = NSTextField(labelWithString: "依拍攝時間重新命名")
+        emptyTitle.font = .systemFont(ofSize: 20, weight: .semibold)
+        let emptyHint = NSTextField(labelWithString: "加入照片、影片或資料夾，先預覽新檔名。")
         emptyHint.font = .systemFont(ofSize: 13); emptyHint.textColor = .secondaryLabelColor
-        let emptyIcon = NSImageView(image: NSImage(systemSymbolName: "photo.on.rectangle.angled", accessibilityDescription: nil)!)
+        let emptyIcon = NSImageView(image: NSImage(systemSymbolName: "folder.badge.plus", accessibilityDescription: nil)!)
         emptyIcon.setAccessibilityElement(false)
-        emptyIcon.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 44, weight: .light)
+        emptyIcon.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 36, weight: .regular)
         emptyIcon.imageScaling = .scaleProportionallyUpOrDown
-        emptyIcon.contentTintColor = .controlAccentColor
-        let iconTile = NSBox(); iconTile.boxType = .custom; iconTile.titlePosition = .noTitle
-        iconTile.cornerRadius = 24; iconTile.borderWidth = 0
-        iconTile.fillColor = .controlAccentColor.withAlphaComponent(0.10)
-        iconTile.contentViewMargins = .zero
-        install(emptyIcon, in: iconTile.contentView!, inset: 24)
-        iconTile.widthAnchor.constraint(equalToConstant: 104).isActive = true
-        iconTile.heightAnchor.constraint(equalToConstant: 104).isActive = true
+        emptyIcon.contentTintColor = .secondaryLabelColor
+        emptyIcon.widthAnchor.constraint(equalToConstant: 48).isActive = true
+        emptyIcon.heightAnchor.constraint(equalToConstant: 48).isActive = true
         let emptyNote = NSTextField(labelWithString: "先預覽，再更名。原始內容不變，更名後可復原。")
         emptyNote.font = .systemFont(ofSize: 11); emptyNote.textColor = .secondaryLabelColor
-        let emptyBody = NSStackView(views: [iconTile, emptyTitle, emptyHint, emptyButton, emptyNote])
-        emptyBody.orientation = .vertical; emptyBody.alignment = .centerX; emptyBody.spacing = 16
-        emptyBody.setCustomSpacing(28, after: iconTile)
-        emptyBody.setCustomSpacing(24, after: emptyHint)
+        let emptyBody = NSStackView(views: [emptyIcon, emptyTitle, emptyHint, emptyButton, emptyNote])
+        emptyBody.orientation = .vertical; emptyBody.alignment = .centerX; emptyBody.spacing = 12
+        emptyBody.setCustomSpacing(16, after: emptyIcon)
+        emptyBody.setCustomSpacing(20, after: emptyHint)
         emptyBody.translatesAutoresizingMaskIntoConstraints = false; emptyView.addSubview(emptyBody)
         NSLayoutConstraint.activate([emptyBody.centerXAnchor.constraint(equalTo: emptyView.centerXAnchor),
             emptyBody.centerYAnchor.constraint(equalTo: emptyView.centerYAnchor),
@@ -302,67 +251,45 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
         status.textColor = .secondaryLabelColor; status.isSelectable = true
         status.font = .systemFont(ofSize: 11)
         status.maximumNumberOfLines = 2
-        renameButton = button("重新命名…", #selector(renameCurrent))
+        renameButton = button("重新命名", #selector(renameCurrent))
         renameButton.bezelColor = .controlAccentColor
-        renameButton.controlSize = .large
-        renameButton.widthAnchor.constraint(equalToConstant: 136).isActive = true
-        candidateLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        candidateLabel.lineBreakMode = .byTruncatingTail
-        let scopeTitle = NSTextField(labelWithString: "更名範圍")
-        scopeTitle.textColor = .secondaryLabelColor
-        actionRow = NSStackView(views: [scopeTitle, scope, candidateLabel, NSView(), renameButton]); actionRow.spacing = 12
-        actionBar.material = .headerView; actionBar.blendingMode = .withinWindow
-        actionBar.state = .followsWindowActiveState
-        actionBar.wantsLayer = true; actionBar.layer?.cornerRadius = 12
-        actionBar.layer?.masksToBounds = true
-        install(actionRow, in: actionBar, inset: 14)
-        attentionLabel.font = .systemFont(ofSize: 13, weight: .semibold)
-        attentionExplanation.font = .systemFont(ofSize: 12)
-        attentionExplanation.textColor = .secondaryLabelColor
-        let attentionText = NSStackView(views: [attentionLabel, attentionExplanation])
-        attentionText.orientation = .vertical; attentionText.alignment = .leading; attentionText.spacing = 4
-        let attentionIcon = NSImageView(image: NSImage(systemSymbolName: "info.circle", accessibilityDescription: nil)!)
-        attentionIcon.contentTintColor = .secondaryLabelColor; attentionIcon.setAccessibilityElement(false)
-        attentionIcon.widthAnchor.constraint(equalToConstant: 18).isActive = true
-        attentionIcon.heightAnchor.constraint(equalToConstant: 18).isActive = true
-        let reviewButton = button("核對項目", #selector(showAttention))
-        let attentionBody = NSStackView(views: [attentionIcon, attentionText, NSView(), reviewButton])
-        attentionBody.alignment = .top; attentionBody.spacing = 12
-        let attentionBox = NSBox(); attentionBox.boxType = .custom; attentionBox.titlePosition = .noTitle
-        attentionBox.borderWidth = 0; attentionBox.cornerRadius = 10
-        attentionBox.borderColor = .separatorColor; attentionBox.fillColor = .controlAccentColor.withAlphaComponent(0.06)
-        attentionBox.contentViewMargins = .zero
-        install(attentionBody, in: attentionBox.contentView!, inset: 14)
-        attentionRow = NSStackView(views: [attentionBox])
-        attentionBox.widthAnchor.constraint(equalTo: attentionRow.widthAnchor).isActive = true
+        renameButton.controlSize = .regular
+        renameButton.widthAnchor.constraint(greaterThanOrEqualToConstant: 160).isActive = true
         clearButton = button("取消選取", #selector(clearSelection))
-        footerRow = NSStackView(views: [status, clearButton]); footerRow.spacing = 8
+        clearButton.bezelStyle = .inline; clearButton.controlSize = .small
+        actionRow = NSStackView(views: [status, clearButton, NSView(), renameButton])
+        actionRow.spacing = 8; actionRow.alignment = .centerY
+        footerRow = actionRow
         status.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        let stack = NSStackView(views: [locationRow!, header, filterRow!, attentionRow, resultRow, progressRow, tableContainer, footerRow!, actionBar, previewSpacer])
-        stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 12; stack.distribution = .fill
-        install(stack, in: main, inset: 24)
+        status.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        let actionDivider = NSBox(); actionDivider.boxType = .separator
+        let actionBody = NSStackView(views: [actionDivider, actionRow])
+        actionBody.orientation = .vertical; actionBody.alignment = .leading; actionBody.spacing = 12
+        install(actionBody, in: actionBar, inset: 0)
+        for view in [actionDivider, actionRow!] as [NSView] { view.widthAnchor.constraint(equalTo: actionBody.widthAnchor).isActive = true }
+        let stack = NSStackView(views: [header, summary, resultRow, progressRow, tableContainer, actionBar, previewSpacer])
+        stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 8; stack.distribution = .fill
+        install(stack, in: main, inset: 16)
         previewSpacer.setContentHuggingPriority(.defaultLow, for: .vertical)
-        for view in [locationRow!, header, filterRow!, attentionRow!, resultRow!, progressRow!, footerRow!, actionBar] as [NSView] {
+        for view in [header, summary, resultRow!, progressRow!, actionBar] as [NSView] {
             view.setContentHuggingPriority(.defaultHigh, for: .vertical)
         }
-        let fullWidthViews: [NSView] = [locationRow!, header, filterRow!, attentionRow, resultRow, progressRow, tableContainer, footerRow!, actionBar, previewSpacer]
+        let fullWidthViews: [NSView] = [header, summary, resultRow, progressRow, tableContainer, actionBar, previewSpacer]
         for view in fullWidthViews {
             view.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
         }
         scroll.heightAnchor.constraint(greaterThanOrEqualToConstant: 180).isActive = true
         makeInspector()
-        let outer = NSStackView(views: [split, emptyView])
-        outer.orientation = .vertical; outer.alignment = .leading; outer.spacing = 12
-        install(outer, in: content, inset: 0)
-        emptyView.widthAnchor.constraint(equalTo: outer.widthAnchor).isActive = true
-        split.widthAnchor.constraint(equalTo: outer.widthAnchor).isActive = true
+        install(split, in: content, inset: 0)
+        install(emptyView, in: content, inset: 0)
         split.heightAnchor.constraint(greaterThanOrEqualToConstant: 450).isActive = true
         refreshControls()
     }
 
     func makeInspector() {
-        let title = NSTextField(labelWithString: "檔案資訊"); title.font = .systemFont(ofSize: 13, weight: .medium)
-        fileNameLabel.font = .systemFont(ofSize: 13, weight: .semibold)
+        let title = NSTextField(labelWithString: "檔案資訊"); title.font = .systemFont(ofSize: 11)
+        title.textColor = .secondaryLabelColor
+        fileNameLabel.font = .systemFont(ofSize: 13)
         for value in [fileNameLabel, destinationLabel] {
             value.maximumNumberOfLines = 2; value.lineBreakMode = .byTruncatingMiddle
         }
@@ -371,14 +298,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
             let caption = value === destinationLabel ? destinationCaption : NSTextField(labelWithString: title)
             caption.font = .systemFont(ofSize: 11); caption.textColor = .secondaryLabelColor
             let stack = NSStackView(views: [caption, value]); stack.orientation = .vertical
-            stack.alignment = .leading; stack.spacing = 4
+            stack.alignment = .leading; stack.spacing = 6
             value.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
             return stack
         }
         image.imageScaling = .scaleProportionallyUpOrDown
         image.setAccessibilityLabel("選取照片預覽")
-        image.heightAnchor.constraint(equalToConstant: 184).isActive = true
-        image.wantsLayer = true; image.layer?.cornerRadius = 10; image.layer?.masksToBounds = true
+        image.heightAnchor.constraint(equalToConstant: 112).isActive = true
+        image.wantsLayer = true; image.layer?.cornerRadius = 6; image.layer?.masksToBounds = true
         let divider = NSBox(); divider.boxType = .separator
         fileInfo = NSStackView(views: [fileNameLabel, field("更名為", destinationLabel), divider,
                                       field("採用時間", timeLabel), field("時間來源", sourceLabel), warningLabel])
@@ -392,15 +319,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
         technicalRow = NSStackView(views: [technicalToggle, technicalTitle]); technicalRow.spacing = 4
         detail.font = .systemFont(ofSize: 11); detail.textColor = .secondaryLabelColor
         revealButton = button("在 Finder 顯示", #selector(revealFile))
+        revealButton.controlSize = .small; revealButton.font = .systemFont(ofSize: NSFont.systemFontSize(for: .small))
         let body = NSStackView(views: [title, image, fileInfo, technicalRow, detail, revealButton])
-        body.orientation = .vertical; body.alignment = .leading; body.spacing = 16
+        body.orientation = .vertical; body.alignment = .leading; body.spacing = 18
         let document = InspectorDocumentView()
         let scroll = NSScrollView(); scroll.documentView = document; scroll.hasVerticalScroller = true; scroll.autohidesScrollers = true
-        inspector.addSubview(scroll); pin(scroll, to: inspector)
+        install(scroll, in: inspector, inset: 0)
         document.translatesAutoresizingMaskIntoConstraints = false
         document.widthAnchor.constraint(equalTo: scroll.contentView.widthAnchor).isActive = true
         scroll.drawsBackground = false
-        install(body, in: document, inset: 24)
+        install(body, in: document, inset: 20)
         let fullWidthViews: [NSView] = [image, fileInfo, detail]
         for view in fullWidthViews { view.widthAnchor.constraint(equalTo: body.widthAnchor).isActive = true }
         updateDetail()
@@ -418,7 +346,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
         app.addItem(withTitle: "結束 Toki", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         add("Toki", app)
         let file = commandMenu([("加入檔案或資料夾…", #selector(chooseFolder)), ("重新掃描", #selector(rescan)),
-            ("設定…", #selector(showSettings)), ("依目前範圍重新命名…", #selector(renameCurrent)),
+            ("設定…", #selector(showSettings)), ("重新命名…", #selector(renameCurrent)),
             ("全部可用項目重新命名…", #selector(renameAll)), ("選取項目重新命名…", #selector(renameSelected)),
             ("匯出預覽 CSV…", #selector(exportCSV)), ("在 Finder 顯示", #selector(revealFile)),
             ("復原這次更名…", #selector(restoreLast)), ("選擇復原紀錄…", #selector(restoreLog))])
@@ -521,18 +449,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
     }
 
     var selectedRows: [PlanRow] { rows.filter { selectedURLs.contains($0.original) } }
-    var candidates: [PlanRow] { (scope.indexOfSelectedItem == 1 ? selectedRows : rows).filter(\.actionable) }
+    var candidates: [PlanRow] { (selectedURLs.isEmpty ? rows : selectedRows).filter(\.actionable) }
     func commandEnabled(_ action: Selector?) -> Bool {
         guard let action else { return false }
         if action == #selector(changeAppearance(_:)) { return true }
         if action == #selector(toggleInspector) { return root != nil && !rows.isEmpty }
         if busy || sheetPending { return false }
         switch action {
-        case #selector(chooseFolder), #selector(showSettings), #selector(showNamingSettings), #selector(showUsage), #selector(restoreLog): return true
+        case #selector(chooseFolder), #selector(showSettings), #selector(showUsage), #selector(restoreLog): return true
         case #selector(increasePreviewText): return previewTextScale < 2
         case #selector(decreasePreviewText), #selector(resetPreviewText): return previewTextScale > 1
-        case #selector(scopeChanged): return !resultFrozen && !rows.isEmpty
-        case #selector(rescan), #selector(revealFile), #selector(copyFolderPath): return root != nil
+        case #selector(rescan), #selector(revealFile): return root != nil
+        case #selector(copyFilePaths): return !pathRows.isEmpty
         case #selector(exportCSV): return !rows.isEmpty
         case #selector(showAttention): return !rows.isEmpty
         case #selector(clearSelection): return !selectedURLs.isEmpty
@@ -552,22 +480,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
     func refreshControls() {
         for (button, action) in toolbarButtons { button.isEnabled = commandEnabled(action) }
         moreButton?.isEnabled = !busy && !sheetPending
-        scope.isEnabled = !busy && !sheetPending && !resultFrozen && !rows.isEmpty
         filter.isEnabled = !busy && !sheetPending && !rows.isEmpty
-        renameButton?.title = "重新命名…"
-        renameButton?.setAccessibilityLabel("依目前範圍確認重新命名")
-        candidateLabel.stringValue = resultFrozen ? "結果已保留，重新掃描後可再次更名" : (candidates.isEmpty ? "沒有可更名的檔案" : "本次更名 \(candidates.count) 個檔案")
-        candidateLabel.toolTip = candidateLabel.stringValue
+        renameButton?.title = "重新命名\(selectedURLs.isEmpty ? "" : "選取的") \(candidates.count) 個檔案"
+        renameButton?.setAccessibilityLabel(renameButton.title)
         let hasContext = root != nil || resultFrozen || busy
         split.isHidden = !hasContext
-        locationRow.isHidden = root == nil
         footerRow.isHidden = root == nil || busy || resultFrozen || rows.isEmpty
         let hideInspector = root == nil || !inspectorVisible || rows.isEmpty
         if inspector.isHidden != hideInspector {
             inspector.isHidden = hideInspector
             if hideInspector { split.removeArrangedSubview(inspector); inspector.removeFromSuperview() }
             else { split.addArrangedSubview(inspector); split.setHoldingPriority(.defaultHigh, forSubviewAt: 1) }
-            split.adjustSubviews(); split.needsDisplay = true
+            split.adjustSubviews()
+            split.needsDisplay = true
         }
         emptyView.isHidden = hasContext
         tableScroll.isHidden = root == nil || busy || rows.isEmpty
@@ -577,19 +502,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
         filter.isHidden = root == nil || rows.isEmpty || restoredResult
         filterRow.isHidden = filter.isHidden || busy
         actionBar.isHidden = actionRow.isHidden
-        namingRuleLabel.stringValue = namingRule
-        namingRuleLabel.toolTip = namingRule
-        namingRuleLabel.setAccessibilityLabel("目前命名格式：\(namingRule)")
         table.tableColumns.first(where: { $0.identifier.rawValue == "new" })?.title = restoredResult ? "先前預覽檔名" : "新檔名"
         filter.setLabel(resultFrozen ? "已更名" : "可更名", forSegment: 2)
-        heading.isHidden = !hasContext; summary.isHidden = !hasContext || busy || (rows.isEmpty && !resultFrozen)
+        heading.isHidden = !hasContext; summary.isHidden = !resultFrozen || busy
         status.isHidden = busy
-        let attentionCount = rows.filter(needsAttention).count
-        attentionRow?.isHidden = root == nil || busy || resultFrozen || attentionCount == 0
-        attentionLabel.stringValue = "\(attentionCount) 個檔案需檢查"
-        attentionExplanation.stringValue = "請在「需注意」篩選中核對時間來源、同名序號與保留原名的項目。"
-        copyPathButton.isHidden = root == nil; locationButton.isHidden = root == nil
-        copyPathButton.isEnabled = root != nil && !busy && !sheetPending
         clearButton?.isHidden = selectedURLs.isEmpty
         progressRow?.isHidden = !busy
         if busy { progress.startAnimation(nil) } else { progress.stopAnimation(nil) }
@@ -604,7 +520,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
         }
         if !busy {
             status.toolTip = nil
-            status.stringValue = root == nil ? "" : (resultFrozen ? "結果已保留；可復原或重新掃描。" : "顯示 \(visibleIndices.count) / \(rows.count) 個檔案\(selectedURLs.isEmpty ? "" : " · 已選 \(selectedURLs.count) 個")")
+            status.stringValue = root == nil ? "" : (resultFrozen ? "結果已保留；可復原或重新掃描。" : summary.stringValue + (visibleIndices.count == rows.count ? "" : " · 顯示 \(visibleIndices.count) 個") + (selectedURLs.isEmpty ? "" : " · 已選 \(selectedURLs.count) 個"))
         }
         emptyButton.isEnabled = commandEnabled(#selector(chooseFolder))
         fitPreviewColumns()
@@ -732,11 +648,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
     @objc func decreasePreviewText() { previewTextScale = max(1, previewTextScale - 0.25); applyPreviewTextSize() }
     @objc func resetPreviewText() { previewTextScale = 1; applyPreviewTextSize() }
     func applyPreviewTextSize() {
-        table.rowHeight = max(44, ceil(NSFont.systemFont(ofSize: 13 * previewTextScale).boundingRectForFont.height) + 16)
+        table.rowHeight = max(30, ceil(NSFont.systemFont(ofSize: 13 * previewTextScale).boundingRectForFont.height) + 10)
         tableScroll.tile(); rebuildVisibleRows()
     }
     func updateDetail() {
-        fileNameLabel.font = .systemFont(ofSize: 13 * previewTextScale, weight: .semibold)
+        fileNameLabel.font = .systemFont(ofSize: 13 * previewTextScale)
         for value in [destinationLabel, timeLabel, sourceLabel, warningLabel] { value.font = .systemFont(ofSize: 13 * previewTextScale) }
         for group in fileInfo.arrangedSubviews.compactMap({ $0 as? NSStackView }) {
             (group.arrangedSubviews.first as? NSTextField)?.font = .systemFont(ofSize: 11 * previewTextScale)
@@ -787,7 +703,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
         alert("使用說明與素材限制", "預設檔名為 YYYYMMDD_HHMMSS。可在「設定 > 命名」自訂文字、日期、原檔名與流水號，保留原副檔名；同名自動加 _1、_2。\n\n只改檔名，不改寫媒體內容。復原紀錄不是媒體備份。\n\n不連動 XMP／AAE 或 Live Photo 配對；請先從 Photos 匯出至一般資料夾。")
     }
     @objc func noAction() {}
-    @objc func scopeChanged() { refreshControls() }
     @objc func showAttention() { filter.selectedSegment = 1; rebuildVisibleRows() }
     @objc func filterChanged() { rebuildVisibleRows() }
     @objc func toggleInspector() {
@@ -804,24 +719,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
             sequenceNumbers.removeAll()
             importURLs = inputs; root = directory ? first : first.deletingLastPathComponent()
             updateImportLocation()
-            lastLog = nil; scope.selectItem(at: 0); filter.selectedSegment = 0
+            lastLog = nil; filter.selectedSegment = 0
             rescan()
         } catch { alert("無法加入項目", error.localizedDescription) }
     }
-    func updateImportLocation() {
-        guard let root else { return }
-        if importURLs.count == 1, importURLs[0] == root {
-            locationLabel.stringValue = "所在位置"; updateLocation(root); window.title = root.lastPathComponent
-        } else {
-            locationLabel.stringValue = "來源"
-            let menu = NSMenu()
-            menu.addItem(NSMenuItem(title: "\(importURLs.count) 個來源", action: nil, keyEquivalent: "")); menu.addItem(.separator())
-            for url in importURLs { let item = NSMenuItem(title: url.lastPathComponent, action: nil, keyEquivalent: ""); item.toolTip = url.path; menu.addItem(item) }
-            locationButton.menu = menu; locationButton.toolTip = importURLs.map(\.path).joined(separator: "\n")
-            locationButton.setAccessibilityLabel("匯入來源：\(importURLs.count) 個項目")
-            window.title = importURLs.count == 1 ? importURLs[0].lastPathComponent : "\(importURLs.count) 個來源"
-        }
-    }
+    func updateImportLocation() { window.title = "Toki" }
     @objc func chooseFolder() {
         guard commandEnabled(#selector(chooseFolder)) else { return }
         let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = true; panel.allowsMultipleSelection = true
@@ -836,13 +738,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
         namingField.stringValue = namingRule; namingField.delegate = self
         namingField.setAccessibilityLabel("自訂命名範本"); namingField.placeholderString = defaultNamingRule
         namingField.font = .monospacedSystemFont(ofSize: 13, weight: .regular)
-        let title = NSTextField(labelWithString: "檔名格式"); title.font = .systemFont(ofSize: 20, weight: .semibold)
-        let subtitle = NSTextField(labelWithString: "組合拍攝日期、原檔名與流水號，立即查看結果。")
-        subtitle.font = .systemFont(ofSize: 12); subtitle.textColor = .secondaryLabelColor
-        let heading = NSStackView(views: [title, subtitle]); heading.orientation = .vertical; heading.alignment = .leading; heading.spacing = 4
-        let label = NSTextField(labelWithString: "命名範本"); label.font = .systemFont(ofSize: 13, weight: .medium)
-        let labelRow = NSStackView(views: [label, NSView(), namingReset])
-        labelRow.alignment = .centerY; labelRow.spacing = 8
         let tokens = NSPopUpButton(frame: .zero, pullsDown: true)
         tokens.controlSize = .small; tokens.bezelStyle = .rounded
         tokens.font = .systemFont(ofSize: NSFont.systemFontSize(for: .small))
@@ -858,17 +753,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
         tokens.menu = menu
         let hint = NSTextField(labelWithString: "插入至游標位置")
         hint.font = .systemFont(ofSize: 11); hint.textColor = .secondaryLabelColor
-        let tools = NSStackView(views: [tokens, hint, NSView()]); tools.spacing = 8; tools.alignment = .centerY
+        let tools = NSStackView(views: [tokens, hint, NSView(), namingReset]); tools.spacing = 8; tools.alignment = .centerY
         namingField.controlSize = .regular
         namingError.font = .systemFont(ofSize: 11); namingError.textColor = .systemRed; namingError.isHidden = true
-        let editorBody = NSStackView(views: [labelRow, namingField, tools, namingError])
+        let editorBody = NSStackView(views: [namingField, tools, namingError])
         editorBody.orientation = .vertical; editorBody.alignment = .leading; editorBody.spacing = 10
-        for view in [labelRow, namingField, tools, namingError] as [NSView] { view.widthAnchor.constraint(equalTo: editorBody.widthAnchor).isActive = true }
-        let editor = NSBox(); editor.boxType = .custom; editor.titlePosition = .noTitle
-        editor.borderWidth = 0; editor.cornerRadius = 10; editor.fillColor = .controlBackgroundColor
+        for view in [namingField, tools, namingError] as [NSView] { view.widthAnchor.constraint(equalTo: editorBody.widthAnchor).isActive = true }
+        let editor = NSBox()
+        editor.boxType = .primary; editor.title = "命名範本"; editor.titlePosition = .atTop
+        editor.titleFont = .systemFont(ofSize: 13)
         editor.contentViewMargins = .zero
         install(editorBody, in: editor.contentView!, inset: 14)
-        let previewTitle = NSTextField(labelWithString: "更名預覽"); previewTitle.font = label.font
         let original = NSTextField(labelWithString: "IMG_4822.jpg")
         let date = NSTextField(labelWithString: "2024/02/29 12:34:56")
         for view in [original, date] { view.font = .systemFont(ofSize: 11); view.textColor = .secondaryLabelColor }
@@ -876,13 +771,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
         namingSample.font = .monospacedSystemFont(ofSize: 13, weight: .regular)
         namingSample.setAccessibilityLabel("更名預覽結果")
         let sampleStack = NSStackView(views: [source, namingSample]); sampleStack.orientation = .vertical; sampleStack.alignment = .leading; sampleStack.spacing = 10
-        let box = NSBox(); box.boxType = .custom; box.titlePosition = .noTitle; box.borderColor = .separatorColor
-        box.fillColor = .controlBackgroundColor; box.borderWidth = 0; box.cornerRadius = 10; box.contentViewMargins = .zero
+        let box = NSBox()
+        box.boxType = .primary; box.title = "更名預覽"; box.titlePosition = .atTop
+        box.titleFont = .systemFont(ofSize: 13); box.contentViewMargins = .zero
         install(sampleStack, in: box.contentView!, inset: 14)
         for view in [source, namingSample] { view.widthAnchor.constraint(equalTo: sampleStack.widthAnchor).isActive = true }
         let previewHint = NSTextField(labelWithString: "範例資料 · 副檔名自動保留")
         previewHint.font = hint.font; previewHint.textColor = .secondaryLabelColor
-        let preview = NSStackView(views: [previewTitle, box, previewHint]); preview.orientation = .vertical; preview.alignment = .leading; preview.spacing = 8
+        let preview = NSStackView(views: [box, previewHint]); preview.orientation = .vertical; preview.alignment = .leading; preview.spacing = 8
         box.widthAnchor.constraint(equalTo: preview.widthAnchor).isActive = true
         let disclosure = NSButton(title: "", target: self, action: #selector(toggleNamingDetails(_:)))
         disclosure.setButtonType(.onOff); disclosure.bezelStyle = .disclosure
@@ -894,11 +790,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
         disclosure.font = .systemFont(ofSize: 11); disclosure.contentTintColor = .secondaryLabelColor
         namingDetails = NSTextField(wrappingLabelWithString: "同名時自動加序號；沒有有效拍攝日期的檔案保留原名。流水號至少四位，初次依完整路徑排序，在本次匯入內保留。")
         namingDetails.font = hint.font; namingDetails.textColor = .secondaryLabelColor; namingDetails.isHidden = true
-        let body = NSStackView(views: [heading, editor, preview, disclosureRow, namingDetails])
-        body.orientation = .vertical; body.alignment = .leading; body.spacing = 16
-        body.setCustomSpacing(24, after: heading)
+        let body = NSStackView(views: [editor, preview, disclosureRow, namingDetails])
+        body.orientation = .vertical; body.alignment = .leading; body.spacing = 12
         body.setCustomSpacing(8, after: disclosureRow)
-        for view in [heading, editor, preview, namingDetails] as [NSView] { view.widthAnchor.constraint(equalTo: body.widthAnchor).isActive = true }
+        for view in [editor, preview, namingDetails] as [NSView] { view.widthAnchor.constraint(equalTo: body.widthAnchor).isActive = true }
         let host = NSView(); install(body, in: host, inset: 0)
         return host
     }
@@ -916,9 +811,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
     @objc func toggleNamingDetails(_ sender: NSButton) {
         namingDetails.isHidden = sender.state != .on
         sender.setAccessibilityLabel(sender.state == .on ? "收合同名、日期與流水號規則" : "展開同名、日期與流水號規則")
-    }
-    @objc func selectSettingsSection(_ sender: NSSegmentedControl) {
-        settingsTabs.selectTabViewItem(at: sender.selectedSegment)
     }
     func updateNamingSample() {
         do {
@@ -943,13 +835,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
         let scanTitle = NSTextField(labelWithString: "掃描範圍"); scanTitle.font = .systemFont(ofSize: 13, weight: .medium)
         let timeTitle = NSTextField(labelWithString: "時間處理"); timeTitle.font = scanTitle.font
         func group(_ views: [NSView]) -> NSBox {
-            let box = NSBox(); box.boxType = .custom; box.titlePosition = .noTitle
-            box.borderWidth = 0; box.cornerRadius = 10; box.fillColor = .controlBackgroundColor
+            let box = NSBox(); box.boxType = .primary; box.titlePosition = .atTop
+            box.title = (views.first as? NSTextField)?.stringValue ?? ""
+            box.titleFont = .systemFont(ofSize: 13)
             box.contentViewMargins = .zero
-            let stack = NSStackView(views: views)
+            let controls = Array(views.dropFirst())
+            let stack = NSStackView(views: controls)
             stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 10
             install(stack, in: box.contentView!, inset: 14)
-            for view in views { view.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true }
+            for view in controls { view.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true }
             return box
         }
         fallback.title = "使用照片備用時間"
@@ -982,47 +876,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
         namingReset.font = .systemFont(ofSize: NSFont.systemFontSize(for: .small))
         let buttons = NSStackView(views: [NSView(), cancel, settingsApply]); buttons.spacing = 8
         let divider = NSBox(); divider.boxType = .separator
-        let title = NSTextField(labelWithString: "掃描與時間")
-        title.font = .systemFont(ofSize: 20, weight: .semibold)
-        let subtitle = NSTextField(labelWithString: "選擇掃描範圍，以及拍攝時間的判讀方式。")
-        subtitle.font = .systemFont(ofSize: 12); subtitle.textColor = .secondaryLabelColor
-        let heading = NSStackView(views: [title, subtitle])
-        heading.orientation = .vertical; heading.alignment = .leading; heading.spacing = 4
-        let scanBody = NSStackView(views: [heading, scanGroup, timeGroup, explanation])
-        scanBody.orientation = .vertical; scanBody.alignment = .leading; scanBody.spacing = 16
-        scanBody.setCustomSpacing(24, after: heading)
+        let scanBody = NSStackView(views: [scanGroup, timeGroup, explanation])
+        scanBody.orientation = .vertical; scanBody.alignment = .leading; scanBody.spacing = 12
         scanBody.setCustomSpacing(8, after: timeGroup)
-        for view in [heading, scanGroup, timeGroup, explanation] as [NSView] { view.widthAnchor.constraint(equalTo: scanBody.widthAnchor).isActive = true }
+        for view in [scanGroup, timeGroup, explanation] as [NSView] { view.widthAnchor.constraint(equalTo: scanBody.widthAnchor).isActive = true }
         func page(_ body: NSView) -> NSScrollView {
             let document = InspectorDocumentView()
             let scroll = NSScrollView(); scroll.documentView = document
             scroll.hasVerticalScroller = true; scroll.autohidesScrollers = true; scroll.drawsBackground = false
             document.translatesAutoresizingMaskIntoConstraints = false
             document.widthAnchor.constraint(equalTo: scroll.contentView.widthAnchor).isActive = true
-            install(body, in: document, inset: 2)
+            install(body, in: document, inset: 16)
             return scroll
         }
         settingsTabs = NSTabView()
-        settingsTabs.tabViewType = .noTabsNoBorder
+        settingsTabs.tabViewType = .topTabsBezelBorder
         let scanTab = NSTabViewItem(identifier: "scan"); scanTab.label = "掃描"; scanTab.view = page(scanBody)
         let namingTab = NSTabViewItem(identifier: "naming"); namingTab.label = "命名"; namingTab.view = page(makeNamingView())
         settingsTabs.addTabViewItem(scanTab); settingsTabs.addTabViewItem(namingTab); settingsTabs.selectTabViewItem(at: 0)
         settingsTabs.setContentHuggingPriority(.defaultLow, for: .vertical)
-        settingsSections = NSSegmentedControl(labels: ["掃描", "命名"], trackingMode: .selectOne, target: self, action: #selector(selectSettingsSection(_:)))
-        settingsSections.selectedSegment = 0
-        settingsSections.segmentStyle = .rounded
-        settingsSections.setAccessibilityLabel("設定分類")
-        let body = NSStackView(views: [settingsSections, settingsTabs, divider, buttons])
+        let body = NSStackView(views: [settingsTabs, divider, buttons])
         body.orientation = .vertical; body.alignment = .centerX; body.spacing = 16
         install(body, in: panel.contentView!, inset: 24)
         for view in [settingsTabs, divider, buttons] as [NSView] { view.widthAnchor.constraint(equalTo: body.widthAnchor).isActive = true }
         updateNamingSample()
         return panel
-    }
-    @objc func showNamingSettings() {
-        guard commandEnabled(#selector(showNamingSettings)) else { return }
-        showSettings()
-        settingsSections.selectedSegment = 1; selectSettingsSection(settingsSections)
     }
     @objc func showSettings() {
         guard commandEnabled(#selector(showSettings)) else { return }
@@ -1041,45 +919,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
         let new = ScanSettings(recursive: recursive.state == .on, fallback: fallback.state == .on,
             quickTimeUTC: quickTimeUTC.state == .on, timeZoneID: outputTimeZone.titleOfSelectedItem ?? "")
         guard TimeZone(identifier: new.timeZoneID) != nil else { NSSound.beep(); return }
-        do { try validateNamingRule(namingField.stringValue) } catch { settingsTabs.selectTabViewItem(at: 1); settingsSections.selectedSegment = 1; selectSettingsSection(settingsSections); updateNamingSample(); return }
-        guard settingsApply.isEnabled else { settingsTabs.selectTabViewItem(at: 1); settingsSections.selectedSegment = 1; selectSettingsSection(settingsSections); return }
+        do { try validateNamingRule(namingField.stringValue) } catch { settingsTabs.selectTabViewItem(at: 1); updateNamingSample(); return }
+        guard settingsApply.isEnabled else { settingsTabs.selectTabViewItem(at: 1); return }
         let changed = new != settings || namingRule != namingField.stringValue
         namingRule = namingField.stringValue; appearanceDefaults.set(namingRule, forKey: "PhotoDateNamingRule")
         settings = new; window.endSheet(panel); panel.orderOut(nil)
         sheetPending = false
         if changed && root != nil { rescan() } else { refreshControls() }
     }
-    func updateLocation(_ folder: URL) {
-        locationButton.setAccessibilityLabel("所在位置：上層資料夾")
-        let parent = folder.deletingLastPathComponent()
-        let menu = NSMenu()
-        let title = NSMenuItem(title: parent.path == "/" ? "磁碟根目錄" : parent.lastPathComponent, action: nil, keyEquivalent: "")
-        title.image = NSImage(systemSymbolName: "folder", accessibilityDescription: nil)
-        menu.addItem(title); menu.addItem(.separator())
-        var ancestor = folder
-        while true {
-            menu.addItem(NSMenuItem(title: ancestor.path == "/" ? "磁碟根目錄" : ancestor.lastPathComponent, action: nil, keyEquivalent: ""))
-            if ancestor.path == "/" { break }
-            ancestor = ancestor.deletingLastPathComponent()
+    var pathRows: [PlanRow] {
+        if visibleIndices.indices.contains(table.clickedRow) {
+            let row = rows[visibleIndices[table.clickedRow]]
+            if !selectedURLs.contains(row.original) { return [row] }
         }
-        menu.addItem(.separator())
-        let copy = NSMenuItem(title: "複製完整路徑", action: #selector(copyFolderPath), keyEquivalent: "")
-        copy.target = self; menu.addItem(copy)
-        locationButton.menu = menu; locationButton.toolTip = folder.path
+        return selectedRows
     }
-    @objc func showFolderPath() {
-        guard let root, !busy && !sheetPending else { return }
-        let panel = NSAlert(); panel.messageText = importURLs.isEmpty || (importURLs.count == 1 && importURLs[0] == root) ? "資料夾完整路徑" : "匯入來源"; panel.informativeText = (importURLs.isEmpty ? [root] : importURLs).map(\.path).joined(separator: "\n") + (importURLs.count > 1 ? "\n\n復原紀錄存放於：\n" + root.path : "")
-        panel.addButton(withTitle: "完成"); panel.addButton(withTitle: "複製路徑")
-        sheetPending = true; refreshControls()
-        panel.beginSheetModal(for: window) { response in
-            if response == .alertSecondButtonReturn { self.copyFolderPath() }
-            self.sheetPending = false; self.refreshControls()
-        }
-    }
-    @objc func copyFolderPath() {
-        guard let root else { return }
-        NSPasteboard.general.clearContents(); NSPasteboard.general.setString((importURLs.isEmpty ? [root] : importURLs).map(\.path).joined(separator: "\n"), forType: .string)
+    @objc func copyFilePaths() {
+        guard commandEnabled(#selector(copyFilePaths)) else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(pathRows.map { currentURL($0).path }.joined(separator: "\n"), forType: .string)
     }
     @objc func updateTimeZoneControl() { outputTimeZone.isEnabled = quickTimeUTC.state == .on }
     @objc func rescan() {
@@ -1118,13 +976,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
     }
     @objc func revealFile() {
         guard commandEnabled(#selector(revealFile)) else { return }
-        if visibleIndices.indices.contains(table.selectedRow) {
-            let url = currentURL(rows[visibleIndices[table.selectedRow]])
+        if let row = pathRows.first {
+            let url = currentURL(row)
             if FileManager.default.fileExists(atPath: url.path) { NSWorkspace.shared.activateFileViewerSelecting([url]); return }
         }
         if let root { NSWorkspace.shared.open(root) }
     }
-    @objc func renameCurrent() { rename(scope.indexOfSelectedItem == 1 ? selectedRows : rows, scopeName: scope.titleOfSelectedItem ?? "全部可用項目") }
+    @objc func renameCurrent() { rename(candidates, scopeName: selectedURLs.isEmpty ? "全部可用項目" : "選取項目") }
     @objc func renameAll() { rename(rows, scopeName: "全部可用項目") }
     @objc func renameSelected() { rename(selectedRows, scopeName: "選取項目") }
     func rename(_ candidates: [PlanRow], scopeName: String) {

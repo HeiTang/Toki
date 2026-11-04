@@ -69,6 +69,8 @@ xcode-select --install
 open dist/Toki.app
 ```
 
+主畫面採用緊湊清單與原生篩選控制項，命名格式統一在設定中調整。清單和檢查器維持穩定底色，工具列跟隨 macOS 系統外觀；檔案右鍵選單可複製路徑。
+
 `build.command` 使用 `swiftc` 編譯目前 Mac 架構，內附 ExifTool 與圖示，執行自測並驗證簽章。
 Apple Silicon 上再執行 `./release.command`，即可產生經驗證的 DMG、ZIP 與 SHA-256。產物位於 `dist/`，不納入 Git。
 

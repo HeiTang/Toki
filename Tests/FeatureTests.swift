@@ -73,7 +73,7 @@ func importAndNamingTests() throws {
     ui.namingField.stringValue = "旅行_{yyyy}-{MM}-{dd}_{index}"; ui.updateNamingSample(); try check(ui.settingsApply.isEnabled && ui.namingSample.stringValue.contains("旅行_2024-02-29_0001.jpg"), "valid rule shows an honest sample")
     let preferences = ui.makeSettingsPanel()
     try check(ui.settingsTabs.numberOfTabViewItems == 2 && ui.settingsTabs.tabViewItems[1].label == "命名", "naming belongs inside settings")
-    try check(ui.settingsTabs.tabViewType == .noTabsNoBorder, "settings has no redundant framed tab container")
+    try check(ui.settingsTabs.tabViewType == .topTabsBezelBorder, "settings uses native tabs without duplicate segmented navigation")
     ui.namingField.stringValue = "旅行_"
     let tokenItem = NSMenuItem(); tokenItem.tag = 0; ui.insertNamingToken(tokenItem)
     try check(ui.namingField.stringValue == "旅行_{yyyy}", "token menu inserts supported variable")
