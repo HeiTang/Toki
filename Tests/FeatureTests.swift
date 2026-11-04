@@ -75,8 +75,10 @@ func importAndNamingTests() throws {
     try check(ui.settingsTabs.numberOfTabViewItems == 2 && ui.settingsTabs.tabViewItems[1].label == "命名", "naming belongs inside settings")
     try check(ui.settingsTabs.tabViewType == .noTabsNoBorder, "settings has no redundant framed tab container")
     ui.namingField.stringValue = "旅行_"
-    let tokenButton = NSButton(); tokenButton.tag = 0; ui.insertNamingToken(tokenButton)
-    try check(ui.namingField.stringValue == "旅行_{yyyy}", "token button inserts supported variable")
+    let tokenItem = NSMenuItem(); tokenItem.tag = 0; ui.insertNamingToken(tokenItem)
+    try check(ui.namingField.stringValue == "旅行_{yyyy}", "token menu inserts supported variable")
+    tokenItem.tag = -1; ui.insertNamingToken(tokenItem)
+    try check(ui.namingField.stringValue == "旅行_{yyyy}", "invalid token menu tags leave the format unchanged")
     ui.namingField.stringValue = "{bad}"; ui.updateNamingSample()
     try check(!ui.namingError.isHidden && !ui.settingsApply.isEnabled, "invalid format shows inline error")
     ui.resetNaming(); try check(ui.namingError.isHidden && ui.settingsApply.isEnabled, "reset clears format error")

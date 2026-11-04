@@ -66,18 +66,22 @@ func p0UISelfTest() throws {
         try check(cell.imageView!.frame.maxX < cell.textField!.frame.minX && abs(cell.imageView!.frame.midY - cell.bounds.midY) < 0.5, "decorative icon stays centered without overlapping enlarged text")
     }
     app.resetPreviewText(); app.clearSelection()
-    try check(app.previewTextScale == 1 && app.table.rowHeight == 38, "reset restores original text and row size")
+    try check(app.previewTextScale == 1 && app.table.rowHeight == 44, "reset restores original text and row size")
     app.window.setFrame(NSRect(origin: app.window.frame.origin, size: NSSize(width: 960, height: 640)), display: false)
     app.fitPreviewColumns()
     try check(app.window.frame.size == NSSize(width: 960, height: 640), "preview honors the actual minimum window frame")
     let contentBounds = app.window.contentView!.bounds
-    for view in [app.locationRow!, app.attentionRow!, app.tableContainer, app.footerRow!, app.actionRow!] as [NSView] {
+    for view in [app.locationRow!, app.filterRow!, app.attentionRow!, app.tableContainer, app.footerRow!, app.actionBar] as [NSView] {
         let rect = view.convert(view.bounds, to: app.window.contentView!)
         try check(contentBounds.contains(rect), "minimum window keeps preview controls within the content area")
     }
+    for control in [app.renameButton!, app.scope, app.filter, app.namingRuleButton!] as [NSView] {
+        let rect = control.convert(control.bounds, to: app.window.contentView!)
+        try check(rect.width > 0 && rect.height > 0 && contentBounds.contains(rect), "minimum window retains usable filter, format, scope and rename controls")
+    }
     let panel = app.makeSettingsPanel()
     panel.contentView?.layoutSubtreeIfNeeded()
-    try check(panel.contentView!.bounds.width == 540 && panel.contentView!.bounds.height == 560, "settings have explicit usable dimensions")
+    try check(panel.contentView!.bounds.width == 560 && panel.contentView!.bounds.height == 520, "settings have explicit usable dimensions")
     for control in [app.recursive, app.fallback, app.quickTimeUTC, app.outputTimeZone, app.settingsApply] as [NSView] {
         let rect = control.convert(control.bounds, to: panel.contentView!)
         try check(rect.width > 0 && rect.height > 0 && panel.contentView!.bounds.contains(rect), "settings controls fit within the sheet")
@@ -89,8 +93,33 @@ func p0UISelfTest() throws {
     let utcRect = app.quickTimeUTC.convert(app.quickTimeUTC.bounds, to: panel.contentView!)
     let zoneRect = app.outputTimeZone.convert(app.outputTimeZone.bounds, to: panel.contentView!)
     try check(zoneRect.maxY < utcRect.minY && zoneRect.width < timeBox!.bounds.width, "time-zone control sits below UTC inside its group")
+    let fallbackRect = app.fallback.convert(app.fallback.bounds, to: panel.contentView!)
+    try check(fallbackRect.minY > utcRect.maxY && zoneRect.maxY <= utcRect.minY, "photo fallback, video interpretation and time zone remain ordered")
     app.quickTimeUTC.state = .off; app.updateTimeZoneControl()
     try check(!app.outputTimeZone.isEnabled, "raw QuickTime mode disables time-zone conversion")
+    app.quickTimeUTC.state = .on; app.updateTimeZoneControl()
+    try check(app.outputTimeZone.isEnabled && app.outputTimeZone.titleOfSelectedItem == app.settings.timeZoneID, "UTC interpretation re-enables the chosen output time zone")
+    app.settingsPanel = panel
+    let settingsSize = panel.contentView!.bounds.size
+    app.settingsSections.selectedSegment = 1; app.selectSettingsSection(app.settingsSections)
+    panel.contentView?.layoutSubtreeIfNeeded()
+    let resetRect = app.namingReset.convert(app.namingReset.bounds, to: panel.contentView!)
+    let formatRect = app.namingField.convert(app.namingField.bounds, to: panel.contentView!)
+    try check(panel.contentView!.bounds.contains(resetRect) && resetRect.minY > formatRect.maxY, "reset belongs beside the format heading and remains visible")
+    let disclosure = NSButton(); disclosure.state = .on; app.toggleNamingDetails(disclosure)
+    app.namingField.stringValue = "{bad}"; app.updateNamingSample()
+    panel.contentView?.layoutSubtreeIfNeeded()
+    try check(panel.contentView!.bounds.size == settingsSize && !app.namingDetails.isHidden && !app.namingError.isHidden && !app.settingsApply.isEnabled, "expanded help and validation do not resize the settings sheet")
+    for item in app.settingsTabs.tabViewItems {
+        try check(item.view is NSScrollView, "settings pages can scroll without moving the footer")
+    }
+    for section in [0, 1, 0] {
+        app.settingsSections.selectedSegment = section; app.selectSettingsSection(app.settingsSections)
+        panel.contentView?.layoutSubtreeIfNeeded()
+        let applyRect = app.settingsApply.convert(app.settingsApply.bounds, to: panel.contentView!)
+        try check(panel.contentView!.bounds.size == settingsSize && panel.contentView!.bounds.contains(applyRect), "switching settings tabs retains the sheet size and visible apply button")
+    }
+    app.settingsPanel = nil
     panel.close()
     app.updateLocation(root.appendingPathComponent(String(repeating: "長路徑資料夾/", count: 12)))
     for size in [NSSize(width: 960, height: 640), NSSize(width: 1180, height: 760)] {
@@ -230,6 +259,14 @@ func p0UISelfTest() throws {
     testPreferences.set(99, forKey: "PhotoDateAppearance"); app.applyAppearance()
     try check(app.appearanceChoice == 0 && NSApp.appearance == nil, "invalid appearance preference safely follows the system")
     try check(app.rows.map(\.original) == rowSnapshot && app.selectedURLs == selectionSnapshot && app.settings == settingsSnapshot, "appearance switching does not change preview, selection or scan configuration")
+    let candidatesBeforeFilter = app.candidates.map(\.original)
+    app.showAttention()
+    try check(app.filter.selectedSegment == 1 && app.candidates.map(\.original) == candidatesBeforeFilter, "review shortcut changes visibility without changing the rename scope")
+    app.busy = true; app.refreshControls(); app.showNamingSettings()
+    try check(app.filterRow.isHidden && app.actionBar.isHidden && app.settingsPanel == nil, "busy state hides batch controls and blocks naming sheet")
+    app.busy = false; app.refreshControls(); app.showNamingSettings()
+    try check(app.settingsPanel != nil && app.settingsSections.selectedSegment == 1 && app.settingsTabs.indexOfTabViewItem(app.settingsTabs.selectedTabViewItem!) == 1, "naming shortcut opens the naming section directly")
+    app.cancelSettings()
     try importAndNamingTests()
     print("P0 UI self-tests passed")
 }
@@ -286,7 +323,7 @@ func p0EmptyPreviewTest() throws {
     app.heading.stringValue = "沒有可處理的照片或影片"
     app.resultLabel.stringValue = "請選擇其他資料夾，或重新掃描。"
     app.refreshControls()
-    guard app.tableScroll.isHidden && app.actionRow.isHidden && app.actionDivider.isHidden && app.footerRow.isHidden && app.inspector.isHidden && app.summary.isHidden && !app.locationRow.isHidden && !app.resultRow.isHidden,
+    guard app.tableScroll.isHidden && app.actionRow.isHidden && app.actionBar.isHidden && app.footerRow.isHidden && app.inspector.isHidden && app.summary.isHidden && !app.locationRow.isHidden && !app.resultRow.isHidden,
           !app.commandEnabled(#selector(AppDelegate.renameCurrent)),
           !app.commandEnabled(#selector(AppDelegate.toggleInspector)),
           app.commandEnabled(#selector(AppDelegate.rescan)),
