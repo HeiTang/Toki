@@ -8,7 +8,9 @@
 
 Toki 是原生 macOS 批次更名工具，使用 EXIF／QuickTime 拍攝時間產生檔名。支援更名前預覽、自訂命名格式與操作復原，適合整理相機、手機及旅行影像。
 
-![Toki Demo：更名預覽、確認與復原](docs/media/demo.gif)
+[![Toki：別再叫它 IMG_4822。](docs/media/demo-poster.jpg)](docs/media/demo.mp4)
+
+**[▶ 觀看 22 秒介紹影片（含音樂）](docs/media/demo.mp4)** · [素材與音樂署名](docs/media/README.md)
 
 ## 功能
 
