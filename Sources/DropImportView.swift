@@ -29,8 +29,11 @@ final class DropImportView: NSView {
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
         if highlighted {
+            NSColor.controlAccentColor.withAlphaComponent(0.08).setFill()
+            let fill = NSBezierPath(roundedRect: bounds.insetBy(dx: 6, dy: 6), xRadius: 12, yRadius: 12)
+            fill.fill()
             NSColor.controlAccentColor.setStroke()
-            let border = NSBezierPath(roundedRect: bounds.insetBy(dx: 6, dy: 6), xRadius: 8, yRadius: 8)
+            let border = NSBezierPath(roundedRect: bounds.insetBy(dx: 6, dy: 6), xRadius: 12, yRadius: 12)
             border.lineWidth = 3; border.stroke()
         }
     }

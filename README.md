@@ -1,14 +1,26 @@
-<p align="center">
+<div align="center">
   <img src="Assets/AppIcon/Toki-1024.png" width="128" alt="Toki">
-</p>
 
-<h1 align="center">Toki</h1>
+  <h1>Toki</h1>
 
-<p align="center">讓照片與影片，回到拍攝的那一刻。</p>
+  <p>讓照片與影片，回到拍攝的那一刻。</p>
 
-Toki 是原生 macOS 批次更名工具，使用 EXIF／QuickTime 拍攝時間產生檔名。支援更名前預覽、自訂命名格式與操作復原，適合整理相機、手機及旅行影像。
+  <p>
+    Toki 是原生 macOS 批次更名工具，使用 EXIF／QuickTime 拍攝時間產生檔名。<br>
+    支援更名前預覽、自訂命名格式與操作復原，適合整理相機、手機及旅行影像。
+  </p>
 
-![Toki Demo：更名預覽、確認與復原](docs/media/demo.gif)
+  <p>
+    <a href="docs/media/demo.mp4">
+      <img src="docs/media/demo-poster.jpg" width="80%" alt="Toki：別再叫它 IMG_4822。點擊觀看介紹影片">
+    </a>
+  </p>
+
+  <p>
+    <strong><a href="docs/media/demo.mp4">▶ 觀看 22 秒介紹影片（含音樂）</a></strong>
+    · <a href="docs/media/README.md">素材與音樂署名</a>
+  </p>
+</div>
 
 ## 功能
 
@@ -68,6 +80,8 @@ xcode-select --install
 ./build.command
 open dist/Toki.app
 ```
+
+主畫面採用緊湊清單與原生篩選控制項，命名格式統一在設定中調整。清單和檢查器維持穩定底色，工具列跟隨 macOS 系統外觀；檔案右鍵選單可複製路徑。
 
 `build.command` 使用 `swiftc` 編譯目前 Mac 架構，內附 ExifTool 與圖示，執行自測並驗證簽章。
 Apple Silicon 上再執行 `./release.command`，即可產生經驗證的 DMG、ZIP 與 SHA-256。產物位於 `dist/`，不納入 Git。
