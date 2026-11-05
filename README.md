@@ -1,16 +1,26 @@
-<p align="center">
+<div align="center">
   <img src="Assets/AppIcon/Toki-1024.png" width="128" alt="Toki">
-</p>
 
-<h1 align="center">Toki</h1>
+  <h1>Toki</h1>
 
-<p align="center">讓照片與影片，回到拍攝的那一刻。</p>
+  <p>讓照片與影片，回到拍攝的那一刻。</p>
 
-Toki 是原生 macOS 批次更名工具，使用 EXIF／QuickTime 拍攝時間產生檔名。支援更名前預覽、自訂命名格式與操作復原，適合整理相機、手機及旅行影像。
+  <p>
+    Toki 是原生 macOS 批次更名工具，使用 EXIF／QuickTime 拍攝時間產生檔名。<br>
+    支援更名前預覽、自訂命名格式與操作復原，適合整理相機、手機及旅行影像。
+  </p>
 
-[![Toki：別再叫它 IMG_4822。](docs/media/demo-poster.jpg)](docs/media/demo.mp4)
+  <p>
+    <a href="docs/media/demo.mp4">
+      <img src="docs/media/demo-poster.jpg" width="80%" alt="Toki：別再叫它 IMG_4822。點擊觀看介紹影片">
+    </a>
+  </p>
 
-**[▶ 觀看 22 秒介紹影片（含音樂）](docs/media/demo.mp4)** · [素材與音樂署名](docs/media/README.md)
+  <p>
+    <strong><a href="docs/media/demo.mp4">▶ 觀看 22 秒介紹影片（含音樂）</a></strong>
+    · <a href="docs/media/README.md">素材與音樂署名</a>
+  </p>
+</div>
 
 ## 功能
 
