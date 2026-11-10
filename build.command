@@ -24,7 +24,7 @@ if [[ -n "${TOKI_SPARKLE_PUBLIC_KEY:-}" ]]; then
   /bin/bash scripts/fetch-sparkle.sh "$app/Contents/Frameworks"
   sparkle_flags=(-F "$app/Contents/Frameworks" -framework Sparkle -Xlinker -rpath -Xlinker '@executable_path/../Frameworks')
 fi
-swiftc -swift-version 5 -module-cache-path "$build_dir/swift-cache" -target "$(uname -m)-apple-macosx13.0" -O \
+xcrun --sdk macosx swiftc -swift-version 5 -module-cache-path "$build_dir/swift-cache" -target "$(uname -m)-apple-macosx13.0" -O \
   "${sparkle_flags[@]}" "$build_dir"/Sources/*.swift "$build_dir"/Tests/*.swift -o "$app/Contents/MacOS/Toki"
 xattr -cr "$app"
 if [[ -n "${SIGN_IDENTITY:-}" ]]; then

@@ -16,6 +16,9 @@ ExifTool 13.55 從官方 CPAN 來源下載，固定 SHA-256，快取於 `.build/
 實際掛載 DMG，確認 Applications 捷徑，複製 App 後重跑自測，再解壓 ZIP 比對完整內容。
 下載檔及 `SHA256SUMS.txt` 位於 `dist/`，不納入 Git。
 
+要在本機重現正式套件的原生外觀，請使用 Xcode 27.0（27A266a）和 macOS SDK 27.0。
+若本機安裝多版 Xcode，可在執行前用 `DEVELOPER_DIR` 指向該版的 `Contents/Developer`。
+
 ## 自動發布
 
 1. 更新 `Resources/Info.plist` 的 `CFBundleShortVersionString` 與遞增 `CFBundleVersion`。
@@ -24,6 +27,8 @@ ExifTool 13.55 從官方 CPAN 來源下載，固定 SHA-256，快取於 `.build/
 
 [Release workflow](../.github/workflows/release.yml) 會檢查標籤與 App 版本相符，
 建置、測試、封裝，再發布 GitHub Release，附上 DMG、ZIP、SHA-256 與 Sparkle 的 `appcast.xml`。
+PR 與發布流程都使用 [`xcode-27` Apple Silicon runner](https://github.com/actions/runner-images/blob/main/images/macos/xcode-27-arm64-Readme.md)，
+固定選取 Xcode 27.0（27A266a）並檢查 macOS SDK 27.0，讓測試包和正式包使用同一套原生介面外觀。
 一般使用者從 Releases 下載，不必登入 Actions，也沒有 CI artifact 的 14 天期限。
 README 的下載網址預定為 `HeiTang/Toki`；若採用其他儲存庫名稱，需同步更新 README 與安裝說明。
 

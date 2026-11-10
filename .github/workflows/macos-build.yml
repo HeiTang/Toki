@@ -36,7 +36,9 @@ concurrency:
 jobs:
   build:
     name: Build, test and package (Apple Silicon)
-    runs-on: macos-15
+    runs-on: xcode-27
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.0.app/Contents/Developer
     timeout-minutes: 20
     steps:
       - name: Check out source
@@ -45,8 +47,11 @@ jobs:
           persist-credentials: false
       - name: Check runner
         run: |
+          set -euo pipefail
           test "$(uname -m)" = arm64
-          swiftc --version
+          test "$(xcodebuild -version | tail -n 1)" = 'Build version 27A266a'
+          test "$(xcrun --sdk macosx --show-sdk-version)" = 27.0
+          xcrun --sdk macosx swiftc --version
       - name: Build and run all self-tests
         run: ./build.command
       - name: Verify and package DMG and ZIP
