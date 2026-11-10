@@ -1,5 +1,8 @@
 import AppKit
 import UniformTypeIdentifiers
+#if canImport(Sparkle)
+import Sparkle
+#endif
 
 final class InspectorDocumentView: NSView {
     override var isFlipped: Bool { true }
@@ -123,6 +126,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
     var appearanceDefaults = UserDefaults.standard
     private var updatingSelection = false
     private var toolbarButtons: [(NSButton, Selector)] = []
+    private var checkingForUpdate = false
+    private var pendingUpdate: Result<TokiRelease?, Error>?
+#if canImport(Sparkle)
+    private var sparkle: SPUStandardUpdaterController?
+#endif
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         if !CommandLine.arguments.contains("--ui-test-light") && !CommandLine.arguments.contains("--ui-test-dark") { applyAppearance() }
@@ -131,6 +139,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
         window.center()
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        if !CommandLine.arguments.contains(where: { $0.hasPrefix("--ui-test-") }) {
+#if canImport(Sparkle)
+            if Bundle.main.object(forInfoDictionaryKey: "SUPublicEDKey") != nil {
+                sparkle = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: self, userDriverDelegate: nil)
+                return
+            }
+#endif
+            checkForUpdate(manual: false)
+        }
     }
 
     func buildInterface() {
@@ -341,6 +358,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
         }
         let app = NSMenu()
         app.addItem(withTitle: "關於 Toki", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        let update = app.addItem(withTitle: "檢查更新⋯", action: #selector(checkForUpdateFromMenu), keyEquivalent: "")
+        update.target = self
         app.addItem(.separator())
         let preferences = NSMenuItem(title: "設定…", action: #selector(showSettings), keyEquivalent: ","); preferences.target = self; app.addItem(preferences); app.addItem(.separator())
         app.addItem(withTitle: "結束 Toki", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
@@ -456,6 +475,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
         if action == #selector(toggleInspector) { return root != nil && !rows.isEmpty }
         if busy || sheetPending { return false }
         switch action {
+        case #selector(checkForUpdateFromMenu):
+#if canImport(Sparkle)
+            if let sparkle { return sparkle.updater.canCheckForUpdates }
+#endif
+            return !checkingForUpdate
         case #selector(chooseFolder), #selector(showSettings), #selector(showUsage), #selector(restoreLog): return true
         case #selector(increasePreviewText): return previewTextScale < 2
         case #selector(decreasePreviewText), #selector(resetPreviewText): return previewTextScale > 1
@@ -525,6 +549,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
         emptyButton.isEnabled = commandEnabled(#selector(chooseFolder))
         fitPreviewColumns()
         window?.toolbar?.validateVisibleItems()
+        if pendingUpdate != nil { DispatchQueue.main.async { self.showPendingUpdate() } }
     }
     func fitPreviewColumns() {
         window?.contentView?.layoutSubtreeIfNeeded()
@@ -1102,6 +1127,60 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
             } catch { self.alert("匯出失敗", error.localizedDescription) }
         }
     }
+    @objc func checkForUpdateFromMenu() {
+        guard commandEnabled(#selector(checkForUpdateFromMenu)) else { return }
+#if canImport(Sparkle)
+        if let sparkle {
+            sparkle.checkForUpdates(nil)
+            return
+        }
+#endif
+        checkForUpdate(manual: true)
+    }
+    private func checkForUpdate(manual: Bool) {
+        let defaults = UserDefaults.standard
+        let key = "TokiLastUpdateCheck"
+        if !manual, let lastCheck = defaults.object(forKey: key) as? Date,
+           Calendar.current.isDateInToday(lastCheck) { return }
+        defaults.set(Date(), forKey: key)
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
+        checkingForUpdate = true
+        Task { @MainActor in
+            defer { checkingForUpdate = false; showPendingUpdate() }
+            do {
+                let release = try await TokiRelease.latest(after: version)
+                if manual || release != nil { pendingUpdate = .success(release) }
+            } catch {
+                if manual { pendingUpdate = .failure(error) }
+            }
+        }
+    }
+    private func showPendingUpdate() {
+        guard let update = pendingUpdate, !checkingForUpdate, !busy, !sheetPending,
+              window.isKeyWindow, window.attachedSheet == nil else { return }
+        pendingUpdate = nil
+        switch update {
+        case .success(let release?):
+            let alert = NSAlert()
+            alert.messageText = "Toki \(release.tag) 已發布"
+            alert.informativeText = "前往 GitHub 下載新版。"
+            alert.addButton(withTitle: "前往下載")
+            alert.addButton(withTitle: "稍後")
+            alert.buttons[1].keyEquivalent = "\u{1b}"
+            sheetPending = true; refreshControls()
+            alert.beginSheetModal(for: window) { response in
+                self.sheetPending = false; self.refreshControls()
+                if response == .alertFirstButtonReturn { NSWorkspace.shared.open(release.downloadPage) }
+            }
+        case .success(nil):
+            alert("Toki 已是最新版", "目前沒有可用的更新。")
+        case .failure:
+            alert("無法檢查更新", "目前無法取得版本資訊，請稍後再試。")
+        }
+    }
+    func windowDidBecomeKey(_ notification: Notification) {
+        DispatchQueue.main.async { self.showPendingUpdate() }
+    }
     func alert(_ title: String, _ message: String) {
         guard window.attachedSheet == nil else { NSSound.beep(); return }
         let alert = NSAlert(); alert.messageText = title; alert.informativeText = message
@@ -1119,3 +1198,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
         if busy || sheetPending { alert("作業進行中", "請等目前作業或對話框完成再結束。"); return .terminateCancel }; return .terminateNow
     }
 }
+
+#if canImport(Sparkle)
+extension AppDelegate: SPUUpdaterDelegate {
+    func updater(_ updater: SPUUpdater, shouldProceedWithUpdate item: SUAppcastItem, updateCheck: SPUUpdateCheck) throws {
+        if busy || sheetPending {
+            throw NSError(domain: "TokiUpdate", code: 1, userInfo: [
+                NSLocalizedDescriptionKey: "請等目前作業完成後再檢查更新。"
+            ])
+        }
+    }
+}
+#endif

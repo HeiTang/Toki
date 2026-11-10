@@ -10,6 +10,10 @@ func p0UISelfTest() throws {
     try check(!app.commandEnabled(#selector(AppDelegate.renameCurrent)), "empty state cannot rename")
     try check(!app.commandEnabled(#selector(AppDelegate.exportCSV)), "empty state cannot export")
     try check(app.commandEnabled(#selector(AppDelegate.restoreLog)), "journal picker remains available without folder")
+    let updateItem = NSApp.mainMenu?.item(at: 0)?.submenu?.item(withTitle: "檢查更新⋯")
+    try check(updateItem?.target === app && updateItem?.action == #selector(AppDelegate.checkForUpdateFromMenu),
+              "update check is available in the Toki menu")
+    try check(updateItem.map(app.validateMenuItem) == true, "manual update check is enabled without an import")
     try check(app.footerRow.isHidden && app.inspector.isHidden && app.split.isHidden, "empty state has no folder strip, footer or inspector")
     try check(app.window.subtitle.isEmpty && app.status.stringValue.isEmpty, "empty state has no version or capability boilerplate")
     app.window.contentView?.layoutSubtreeIfNeeded()
@@ -260,6 +264,7 @@ func p0UISelfTest() throws {
     try check(app.filter.selectedSegment == 1 && app.candidates.map(\.original) == candidatesBeforeFilter, "review shortcut changes visibility without changing the rename scope")
     app.busy = true; app.refreshControls(); app.showSettings()
     try check(app.filterRow.isHidden && app.actionBar.isHidden && app.settingsPanel == nil, "busy state hides batch controls and blocks naming sheet")
+    try check(updateItem.map(app.validateMenuItem) == false, "manual update check waits for batch operations")
     app.busy = false; app.refreshControls(); app.showSettings()
     try check(app.settingsPanel != nil, "settings remain available from the standard entry point")
     app.settingsTabs.selectTabViewItem(at: 1)

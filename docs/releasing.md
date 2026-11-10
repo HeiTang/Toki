@@ -23,12 +23,30 @@ ExifTool 13.55 從官方 CPAN 來源下載，固定 SHA-256，快取於 `.build/
 3. 在準備發布的 commit 建立與版本一致的標籤，例如 `v1.4.1`，推送該標籤。
 
 [Release workflow](../.github/workflows/release.yml) 會檢查標籤與 App 版本相符，
-建置、測試、封裝，再發布 GitHub Release，附上 DMG、ZIP、SHA-256。
+建置、測試、封裝，再發布 GitHub Release，附上 DMG、ZIP、SHA-256 與 Sparkle 的 `appcast.xml`。
 一般使用者從 Releases 下載，不必登入 Actions，也沒有 CI artifact 的 14 天期限。
 README 的下載網址預定為 `HeiTang/Toki`；若採用其他儲存庫名稱，需同步更新 README 與安裝說明。
 
 重跑已發布的版本時，`gh release create` 會拒絕覆蓋既有 Release。
 修正後請遞增版本並建立新標籤。Git 標籤與 Release 應保留，不以相同版本替換產物。
+
+## Sparkle 更新簽章
+
+用 Sparkle 2 的 `bin/generate_keys --account toki-release` 產生一次正式金鑰。
+保留同一組金鑰供後續發版，將備份存放在可控管的密碼庫。儲存庫 Actions 設定：
+
+| 類型 | 名稱 | 內容 |
+| --- | --- | --- |
+| Variable | `SPARKLE_PUBLIC_KEY` | `generate_keys --account toki-release -p` 輸出的 Base64 公鑰 |
+| Secret | `SPARKLE_PRIVATE_KEY` | 用 `generate_keys --account toki-release -x` 匯出的 Base64 私鑰 seed，解碼後為 32 bytes |
+
+`build.command` 收到 `TOKI_SPARKLE_PUBLIC_KEY` 時才會下載並校驗固定版本的 Sparkle，
+將框架和公鑰嵌入 App。未設定時維持 GitHub 更新提醒，PR 測試不需要發布金鑰。
+發布 job 在封裝驗證完成後，用私鑰簽署最終 ZIP；若私鑰缺失或與 App 內的公鑰不符，會在發布前失敗。
+
+App 固定讀取 Latest Release 的 `appcast.xml`，清單中的 ZIP 網址則綁定具體版本標籤。
+每次正式發版都應將 appcast 與同一份 ZIP 一起發布。Sparkle 背景檢查預設啟用，靜默安裝預設關閉。
+Apple 公證未設定時，App 仍採 ad-hoc 簽署，Sparkle 透過 EdDSA 驗證 ZIP。
 
 ## Developer ID 簽章與 Apple 公證
 

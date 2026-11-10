@@ -61,9 +61,21 @@ jobs:
           echo 'NOTARY_PROFILE=toki-notary' >> "$GITHUB_ENV"
           echo "NOTARY_KEYCHAIN=$keychain" >> "$GITHUB_ENV"
       - name: Build and run all self-tests
-        run: ./build.command
+        env:
+          TOKI_SPARKLE_PUBLIC_KEY: ${{ vars.SPARKLE_PUBLIC_KEY }}
+        run: |
+          set -euo pipefail
+          : "${TOKI_SPARKLE_PUBLIC_KEY:?Set the SPARKLE_PUBLIC_KEY repository variable}"
+          ./build.command
       - name: Notarize if configured, package and verify downloads
         run: ./release.command
+      - name: Sign update ZIP and create Sparkle appcast
+        env:
+          TOKI_SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          swift scripts/sign-appcast.swift dist \
+            "https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/Toki-macos-arm64.zip"
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -78,7 +90,7 @@ jobs:
           fi
           gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --verify-tag \
             --title "Toki ${GITHUB_REF_NAME#v}" --notes-file "$notes" \
-            dist/Toki-macos-arm64.dmg dist/Toki-macos-arm64.zip dist/SHA256SUMS.txt
+            dist/Toki-macos-arm64.dmg dist/Toki-macos-arm64.zip dist/SHA256SUMS.txt dist/appcast.xml
       - name: Remove signing keychain
         if: always()
         run: |

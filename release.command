@@ -47,7 +47,6 @@ mounted=false
 PATH=/usr/bin:/bin:/usr/sbin:/sbin "$work/installed/Toki.app/Contents/MacOS/Toki" --self-test
 ditto -c -k --sequesterRsrc --keepParent "$app" "$zip"
 ditto -x -k "$zip" "$work/unzip"
-python3 scripts/verify-app.py "$work/unzip/Toki.app"
-diff -qr "$app" "$work/unzip/Toki.app"
+python3 scripts/verify-app.py "$work/unzip/Toki.app" "$app"
 (cd dist && shasum -a 256 Toki-macos-arm64.dmg Toki-macos-arm64.zip > SHA256SUMS.txt)
 printf 'Packaged DMG, ZIP and SHA256SUMS.txt in %s/dist\n' "$PWD"

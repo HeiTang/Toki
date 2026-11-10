@@ -5,6 +5,18 @@ func selfTest() throws {
     func check(_ condition: @autoclosure () -> Bool, _ message: String) throws {
         if !condition() { throw RenameError(message: message) }
     }
+    let releaseData = Data(#"{"tag_name":"v1.10.0"}"#.utf8)
+    let newer = try TokiRelease.newerRelease(from: releaseData, than: "1.9.9")
+    let same = try TokiRelease.newerRelease(from: releaseData, than: "1.10.0")
+    let older = try TokiRelease.newerRelease(from: releaseData, than: "1.10.1")
+    try check(newer?.downloadPage.absoluteString == "https://github.com/HeiTang/Toki/releases/tag/v1.10.0",
+              "update compares numeric versions and links to the matching release")
+    try check(same == nil && older == nil, "update ignores matching and older releases")
+    let invalid = Data(#"{"tag_name":"v1.10.0-rc.1"}"#.utf8)
+    do {
+        _ = try TokiRelease.newerRelease(from: invalid, than: "1.9.9")
+        throw RenameError(message: "update accepted an invalid stable release tag")
+    } catch let error as URLError where error.code == .cannotParseResponse {}
     if Bundle.main.bundlePath.hasSuffix(".app") {
         let bundled = Bundle.main.resourceURL!.appendingPathComponent("ExifTool/exiftool").path
         let resolved = try exiftoolPath()
