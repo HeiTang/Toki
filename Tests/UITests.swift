@@ -10,7 +10,7 @@ func p0UISelfTest() throws {
     try check(!app.commandEnabled(#selector(AppDelegate.renameCurrent)), "empty state cannot rename")
     try check(!app.commandEnabled(#selector(AppDelegate.exportCSV)), "empty state cannot export")
     try check(app.commandEnabled(#selector(AppDelegate.restoreLog)), "journal picker remains available without folder")
-    let updateItem = NSApp.mainMenu?.item(at: 0)?.submenu?.item(withTitle: "檢查更新⋯")
+    let updateItem = NSApp.mainMenu?.item(at: 0)?.submenu?.item(withTitle: "檢查更新")
     try check(updateItem?.target === app && updateItem?.action == #selector(AppDelegate.checkForUpdateFromMenu),
               "update check is available in the Toki menu")
     try check(updateItem.map(app.validateMenuItem) == true, "manual update check is enabled without an import")

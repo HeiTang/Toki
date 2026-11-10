@@ -358,7 +358,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate,
         }
         let app = NSMenu()
         app.addItem(withTitle: "關於 Toki", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
-        let update = app.addItem(withTitle: "檢查更新⋯", action: #selector(checkForUpdateFromMenu), keyEquivalent: "")
+        let update = app.addItem(withTitle: "檢查更新", action: #selector(checkForUpdateFromMenu), keyEquivalent: "")
         update.target = self
         app.addItem(.separator())
         let preferences = NSMenuItem(title: "設定…", action: #selector(showSettings), keyEquivalent: ","); preferences.target = self; app.addItem(preferences); app.addItem(.separator())
