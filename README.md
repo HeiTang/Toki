@@ -40,6 +40,14 @@
 2. 將 **Toki.app** 拖到 **Applications**。
 3. 從「應用程式」開啟 Toki。
 
+已安裝 Homebrew 的使用者，也可透過 [HeiTang Homebrew Tap](https://github.com/HeiTang/Homebrew-Tap) 安裝：
+
+```sh
+brew install --cask heitang/tap/toki
+```
+
+安裝完成後，從「應用程式」開啟 Toki。
+
 目前尚未完成 Apple 公證。若 macOS 顯示「無法驗證開發者」，先嘗試開啟一次，
 再到「系統設定 → 隱私權與安全性」按「仍要打開」。請確認檔案下載自本專案 Releases。
 
